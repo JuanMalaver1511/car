@@ -45,7 +45,22 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;overflow:hidden;
 @keyframes blink{50%{opacity:0}}
 
 /* ── SEARCH CARD ── */
-#topbar{position:fixed;top:50px;left:0;right:0;z-index:300;padding:0 12px;max-width:440px;margin:0 auto;}
+#topbar{position:fixed;top:50px;left:0;right:0;z-index:300;padding:0 12px;max-width:440px;margin:0 auto;
+  transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .3s ease;}
+#topbar.hidden{transform:translateY(-140%);opacity:0;pointer-events:none;}
+/* ── TOGGLE SEARCH BUTTON ── */
+#btn-toggle-search{
+  position:fixed;top:54px;right:14px;z-index:310;display:none;
+  background:var(--card);border:1px solid var(--border);border-radius:4px;
+  padding:8px 12px;cursor:pointer;align-items:center;gap:7px;
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;
+  color:var(--cyan);text-shadow:0 0 6px var(--cyan);white-space:nowrap;
+  box-shadow:0 0 18px rgba(0,245,255,.12);transition:all .2s;
+}
+#btn-toggle-search.show{display:flex;}
+#btn-toggle-search:hover{background:rgba(0,245,255,.08);box-shadow:0 0 28px rgba(0,245,255,.22);}
+#btn-toggle-search .tsbdot{width:8px;height:8px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 6px var(--cyan);flex-shrink:0;}
 #search-card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:12px;
   box-shadow:0 0 30px rgba(255,45,85,.15),0 0 60px rgba(0,0,0,.8),inset 0 0 20px rgba(255,45,85,.02);
   position:relative;}
@@ -82,7 +97,8 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;overflow:hidden;
 
 /* ── ROUTE CHIP ROW (under search) ── */
 #route-chip-row{position:fixed;top:50px;left:0;right:0;z-index:298;padding:0 12px;
-  max-width:440px;margin:0 auto;display:none;}
+  max-width:440px;margin:0 auto;display:none;
+  transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .3s ease;}
 #route-chip-row.show{display:block;}
 #rci{background:var(--card);border:1px solid rgba(0,245,255,.2);border-top:none;
   border-radius:0 0 4px 4px;padding:8px 12px;
@@ -346,6 +362,11 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;overflow:hidden;
     ">📡 SIM</div>
   </div>
 </div>
+
+<!-- TOGGLE SEARCH BUTTON -->
+<button id="btn-toggle-search" onclick="toggleSearch()">
+  <span class="tsbdot"></span>RUTA
+</button>
 
 <!-- SEARCH -->
 <div id="topbar">
@@ -815,6 +836,9 @@ function updateInfoUI(km,timeStr){
   document.getElementById('btn-big-go').classList.add('ready');
   document.getElementById('btn-big-go').textContent='🏎   INICIAR CARRERA';
   routeReady=true;
+  // Auto-hide search panel now that route is set
+  autoHideSearch();
+  // Also hide toggle button during nav (not needed mid-race)
 }
 
 function updateIdleStats(){
@@ -1106,6 +1130,8 @@ function startNav(){
 
   map.setView(routeCoords[0],15,{animate:true,duration:1.2});
   nitroFlash();
+  // Hide search toggle during race
+  document.getElementById('btn-toggle-search').classList.remove('show');
 
   // Try GPS first
   if(navigator.geolocation){
@@ -1142,6 +1168,9 @@ function stopNav(){
   switchToDash('idle');clearOldRoute();
   if(routeCoords.length)drawRoute(routeCoords,'#00F5FF');
   updateGpsSignalUI(false,0);
+  // Restore toggle button and show search
+  document.getElementById('btn-toggle-search').classList.add('show');
+  if(!searchVisible) toggleSearch();
 }
 
 // ═══════════════════════════════════
@@ -1239,7 +1268,40 @@ function sendReport(tipo,icon){
   }).addTo(map).bindPopup(`<b>${icon} ${tipo}</b><br><small style="color:#aaa">Reportado ahora</small>`).openPopup();
 }
 
-// ── City dots ──
+// ── Search panel toggle ──
+let searchVisible=true;
+function toggleSearch(){
+  searchVisible=!searchVisible;
+  const tb=document.getElementById('topbar');
+  const rc=document.getElementById('route-chip-row');
+  const btn=document.getElementById('btn-toggle-search');
+  if(searchVisible){
+    tb.classList.remove('hidden');
+    rc.style.transition='transform .35s cubic-bezier(.4,0,.2,1),opacity .3s ease';
+    rc.style.transform='';rc.style.opacity='';
+    btn.innerHTML='<span class="tsbdot"></span>CERRAR';
+    btn.style.color='var(--neon)';btn.style.borderColor='var(--border)';
+    btn.style.textShadow='0 0 6px var(--neon)';
+    btn.querySelector('.tsbdot').style.background='var(--neon)';
+    btn.querySelector('.tsbdot').style.boxShadow='0 0 6px var(--neon)';
+  } else {
+    tb.classList.add('hidden');
+    rc.style.transform='translateY(-140%)';rc.style.opacity='0';
+    btn.innerHTML='<span class="tsbdot"></span>RUTA';
+    btn.style.color='var(--cyan)';btn.style.borderColor='var(--border)';
+    btn.style.textShadow='0 0 6px var(--cyan)';
+    btn.querySelector('.tsbdot').style.background='var(--cyan)';
+    btn.querySelector('.tsbdot').style.boxShadow='0 0 6px var(--cyan)';
+  }
+}
+function autoHideSearch(){
+  // Show the toggle button and collapse the panel
+  document.getElementById('btn-toggle-search').classList.add('show');
+  // Small delay so user sees the route chip appear first
+  setTimeout(()=>{
+    if(searchVisible) toggleSearch();
+  },1400);
+}
 CIUDADES.forEach(c=>{
   const dot=L.circleMarker([c.lat,c.lon],{radius:5,color:'#00F5FF',fillColor:'#00F5FF',fillOpacity:.2,weight:1.5,opacity:.5}).addTo(map);
   dot.bindTooltip(`<span style="font-family:'Share Tech Mono';color:#00F5FF;font-size:11px;">${c.icon} ${c.name.toUpperCase()}</span>`,{direction:'top'});
