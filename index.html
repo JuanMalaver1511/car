@@ -739,7 +739,10 @@ const CIUDADES=[
 //  MAP
 // ═══════════════════════════════════
 const map=L.map('map',{center:[5.65,-73.2],zoom:10,zoomControl:false,attributionControl:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(map);
+L.tileLayer(
+'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+{ attribution:'© OpenStreetMap © CARTO' }
+).addTo(map);
 
 // ═══════════════════════════════════
 //  STATE
@@ -1618,24 +1621,59 @@ function showToast(msg){
   clearTimeout(tTimer);tTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
 function locateMe(){
-  if(!navigator.geolocation){showToast('❌ GPS NO DISPONIBLE');return;}
+  if(!navigator.geolocation){
+    showToast('❌ GPS NO DISPONIBLE');
+    return;
+  }
+
   showToast('📡 BUSCANDO UBICACIÓN...');
+
   navigator.geolocation.getCurrentPosition(p=>{
-    const ll=[p.coords.latitude,p.coords.longitude];
+    
+    const ll = [p.coords.latitude, p.coords.longitude];
+
     map.flyTo(ll,15,{duration:1.5});
-    // Draw accuracy ring
-    L.circle(ll,{radius:p.coords.accuracy,color:'#00F5FF',fillColor:'#00F5FF',
-      fillOpacity:.07,weight:1,opacity:.3}).addTo(map);
-    L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#00F5FF',fillOpacity:.9,weight:2}).addTo(map);
+
+    // Dibujar precisión
+    L.circle(ll,{
+      radius:p.coords.accuracy,
+      color:'#00F5FF',
+      fillColor:'#00F5FF',
+      fillOpacity:.07,
+      weight:1,
+      opacity:.3
+    }).addTo(map);
+
+    L.circleMarker(ll,{
+      radius:8,
+      color:'#fff',
+      fillColor:'#00F5FF',
+      fillOpacity:.9,
+      weight:2
+    }).addTo(map);
+
     showToast('📍 UBICACIÓN ENCONTRADA · ±'+Math.round(p.coords.accuracy)+'m');
-    // Offer to set as origin if not set
-    if(!originCity){
-      setTimeout(()=>showToast('💡 TOCA UNA CIUDAD COMO ORIGEN O USA EL BUSCADOR'),3600);
-    }
+
+    // 🔹 GUARDAR COMO ORIGEN
+    originCity = {
+      name: "Mi ubicación",
+      coords: ll
+    };
+
+    showToast('🚀 ORIGEN ESTABLECIDO: MI UBICACIÓN');
+
   },e=>{
-    const m={1:'❌ PERMISO DENEGADO',2:'⚠️ SIN COBERTURA GPS',3:'⏱️ GPS TIMEOUT'};
+    const m={
+      1:'❌ PERMISO DENEGADO',
+      2:'⚠️ SIN COBERTURA GPS',
+      3:'⏱️ GPS TIMEOUT'
+    };
     showToast(m[e.code]||'❌ ERROR GPS');
-  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+  },{
+    enableHighAccuracy:true,
+    timeout:10000,
+    maximumAge:0
+  });
 }
 function toggleReport(){document.getElementById('report-panel').classList.toggle('open');}
 function sendReport(tipo,icon){
