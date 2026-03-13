@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOYACÁ UNDERGROUND — Street Racing Nav</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --neon:#FF2D55; --neon2:#FF6B00; --cyan:#00F5FF;
+  --green:#39FF14; --yellow:#FFE600; --purple:#BF00FF;
+  --bg:#060810; --panel:rgba(6,8,16,0.97);
+  --card:rgba(10,12,22,0.98); --border:rgba(255,45,85,0.28);
+  --text:#F0F2FF; --dim:#4a5068;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:'Barlow Condensed',sans-serif;overflow:hidden;background:var(--bg);}
+
+/* ── MAP ── */
+#map{position:fixed;inset:0;z-index:0;}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) saturate(0.35) brightness(0.52) contrast(1.15);}
+.leaflet-control-attribution{display:none!important;}
+.leaflet-popup-content-wrapper{background:#0C0E1E;border:1px solid var(--border);border-radius:4px;color:var(--text);}
+.leaflet-popup-tip{background:#0C0E1E;}
+.leaflet-popup-content{font-family:'Barlow Condensed',sans-serif;font-size:14px;}
+
+/* ── OVERLAYS ── */
+#scanlines{position:fixed;inset:0;z-index:5;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);}
+#vignette{position:fixed;inset:0;z-index:4;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,0.9) 100%);}
+
+/* ── BRAND TOP ── */
+#brand{position:fixed;top:0;left:0;right:0;z-index:300;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px 0;pointer-events:none;}
+.brand-logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;
+  color:var(--neon);text-shadow:0 0 10px var(--neon),0 0 30px rgba(255,45,85,.4);line-height:1;}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan);
+  text-shadow:0 0 8px var(--cyan);margin-top:1px;}
+.brand-right{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--green);
+  text-shadow:0 0 8px var(--green);text-align:right;}
+.blink{animation:blink .8s step-end infinite;}
+@keyframes blink{50%{opacity:0}}
+
+/* ── SEARCH CARD ── */
+#topbar{position:fixed;top:50px;left:0;right:0;z-index:300;padding:0 12px;max-width:440px;margin:0 auto;}
+#search-card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:12px;
+  box-shadow:0 0 30px rgba(255,45,85,.15),0 0 60px rgba(0,0,0,.8),inset 0 0 20px rgba(255,45,85,.02);
+  position:relative;}
+#search-card::before,#search-card::after{content:'';position:absolute;width:12px;height:12px;border-color:var(--neon);border-style:solid;}
+#search-card::before{top:-1px;left:-1px;border-width:2px 0 0 2px;}
+#search-card::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0;}
+.field-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--dim);margin-bottom:4px;}
+.search-row{display:flex;align-items:center;gap:10px;position:relative;}
+.search-row+.search-row{margin-top:10px;}
+.s-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.s-dot.origin{background:var(--green);box-shadow:0 0 8px var(--green);}
+.s-dot.dest{background:var(--neon);box-shadow:0 0 8px var(--neon);}
+.s-input{flex:1;border:none;outline:none;background:rgba(255,255,255,0.04);
+  border-bottom:1px solid rgba(255,255,255,0.1);font-family:'Barlow Condensed',sans-serif;
+  font-size:16px;font-weight:700;color:var(--text);cursor:pointer;padding:4px 6px;letter-spacing:.5px;}
+.s-input::placeholder{color:var(--dim);font-weight:600;}
+.s-input:focus{border-bottom-color:var(--neon);outline:none;}
+.s-clear{background:none;border:none;cursor:pointer;color:var(--dim);font-size:16px;padding:0 4px;display:none;}
+.conn-line{width:2px;height:10px;background:linear-gradient(var(--green),var(--neon));margin:3px 0 3px 4px;border-radius:2px;}
+
+/* ── DROPDOWN ── */
+.dropdown{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:#0A0C1A;border:1px solid var(--border);border-radius:4px;z-index:500;
+  max-height:200px;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.9),0 0 20px rgba(255,45,85,.08);}
+.dropdown.open{display:block;}
+.dd-item{padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,255,255,0.04);transition:background .1s;}
+.dd-item:hover{background:rgba(255,45,85,.08);}
+.dd-icon{font-size:16px;flex-shrink:0;}
+.dd-name{font-size:14px;font-weight:700;color:var(--text);letter-spacing:.3px;}
+.dd-sub{font-size:10px;color:var(--dim);margin-top:1px;font-family:'Share Tech Mono',monospace;}
+.dropdown::-webkit-scrollbar{width:3px;}
+.dropdown::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* ── ROUTE CHIP ROW (under search) ── */
+#route-chip-row{position:fixed;top:50px;left:0;right:0;z-index:298;padding:0 12px;
+  max-width:440px;margin:0 auto;display:none;}
+#route-chip-row.show{display:block;}
+#rci{background:var(--card);border:1px solid rgba(0,245,255,.2);border-top:none;
+  border-radius:0 0 4px 4px;padding:8px 12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.8),0 0 20px rgba(0,245,255,.06);}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{border-radius:2px;padding:4px 11px;font-family:'Share Tech Mono',monospace;
+  font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;letter-spacing:1px;}
+.chip.time{background:rgba(255,110,0,.1);color:var(--neon2);border:1px solid rgba(255,110,0,.3);}
+.chip.dist{background:rgba(57,255,20,.08);color:var(--green);border:1px solid rgba(57,255,20,.25);}
+.chip.via{background:rgba(0,245,255,.06);color:var(--cyan);border:1px solid rgba(0,245,255,.2);font-size:9px;}
+
+/* ── PROGRESS BAR TOP ── */
+#progress-bar{position:fixed;top:0;left:0;height:2px;z-index:600;width:0%;
+  background:linear-gradient(90deg,var(--green),var(--cyan),var(--neon));
+  box-shadow:0 0 10px var(--cyan),0 0 20px rgba(0,245,255,.5);
+  transition:width .4s ease;display:none;}
+
+/* ═══════════════════════════════════════════
+   BOTTOM DASHBOARD — the main attraction
+═══════════════════════════════════════════ */
+#dashboard{
+  position:fixed;bottom:0;left:0;right:0;z-index:400;
+  background:var(--panel);
+  border-top:2px solid var(--border);
+  box-shadow:0 -10px 50px rgba(0,0,0,.8), 0 -2px 0 rgba(255,45,85,.1);
+}
+
+/* ── IDLE STATE (before route) ── */
+#dash-idle{padding:12px 16px 14px;}
+.idle-hint{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;
+  color:var(--dim);text-align:center;margin-bottom:10px;}
+.btn-big-go{
+  width:100%;background:transparent;border:2px solid var(--dim);
+  border-radius:4px;padding:14px;cursor:pointer;
+  font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;
+  color:var(--dim);transition:all .2s;position:relative;overflow:hidden;
+}
+.btn-big-go.ready{
+  border-color:var(--neon);color:var(--neon);
+  text-shadow:0 0 14px var(--neon);
+  box-shadow:0 0 25px rgba(255,45,85,.2),inset 0 0 25px rgba(255,45,85,.04);
+  animation:idle-pulse 2s ease-in-out infinite;
+}
+@keyframes idle-pulse{0%,100%{box-shadow:0 0 20px rgba(255,45,85,.15),inset 0 0 20px rgba(255,45,85,.03);}
+  50%{box-shadow:0 0 40px rgba(255,45,85,.35),inset 0 0 30px rgba(255,45,85,.08);}}
+.btn-big-go.ready:hover{background:rgba(255,45,85,.1);}
+.btn-big-go.ready:active{transform:scale(.98);}
+.btn-big-go::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,45,85,.12),transparent);
+  transform:translateX(-100%);transition:.5s;}
+.btn-big-go.ready:hover::before{transform:translateX(100%);}
+
+/* Quick stats row (idle) */
+.idle-stats{display:flex;gap:0;margin-top:10px;}
+.idle-stat{flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.05);padding:6px 4px;}
+.idle-stat:last-child{border-right:none;}
+.is-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);line-height:1;display:block;}
+.is-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--dim);display:block;margin-top:2px;}
+
+/* ── RACE STATE (navigation active) ── */
+#dash-race{display:none;}
+#dash-race.show{display:block;}
+
+/* Turn instruction strip */
+#nav-strip{
+  background:linear-gradient(135deg,rgba(0,245,255,.1),rgba(0,245,255,.04));
+  border-bottom:1px solid rgba(0,245,255,.2);
+  padding:10px 14px;display:flex;align-items:center;gap:12px;
+}
+.arrow-box{width:50px;height:50px;border:2px solid var(--cyan);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;
+  background:rgba(0,245,255,.08);box-shadow:0 0 15px rgba(0,245,255,.18),inset 0 0 12px rgba(0,245,255,.04);}
+.nav-dist-big{font-family:'Bebas Neue',sans-serif;font-size:34px;color:#fff;letter-spacing:1px;line-height:1;
+  text-shadow:0 0 12px rgba(255,255,255,.25);}
+.nav-street-name{font-size:13px;font-weight:700;color:rgba(255,255,255,.55);
+  font-family:'Share Tech Mono',monospace;letter-spacing:.5px;margin-top:2px;}
+
+/* ── TELEMETRY GRID ── */
+#tele-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr 80px 1fr 1fr;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.tele-cell{
+  padding:8px 6px;text-align:center;
+  border-right:1px solid rgba(255,255,255,.04);position:relative;
+}
+.tele-cell:last-child{border-right:none;}
+.tc-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);line-height:1;display:block;}
+.tc-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;color:var(--dim);display:block;margin-top:2px;}
+.tc-val.green{color:var(--green);text-shadow:0 0 8px var(--green);}
+.tc-val.cyan{color:var(--cyan);text-shadow:0 0 8px var(--cyan);}
+.tc-val.neon{color:var(--neon);text-shadow:0 0 8px var(--neon);}
+.tc-val.yellow{color:var(--yellow);text-shadow:0 0 8px var(--yellow);}
+.tc-val.orange{color:var(--neon2);text-shadow:0 0 8px var(--neon2);}
+
+/* SPEEDOMETER cell */
+.spdo-cell{padding:6px 4px;display:flex;align-items:center;justify-content:center;
+  border-right:1px solid rgba(255,255,255,.04);}
+.spdo{width:68px;height:68px;position:relative;}
+.spdo svg{width:100%;height:100%;}
+.spdo-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.spdo-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);line-height:1;}
+.spdo-unit{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:var(--dim);}
+
+/* ── ACTION ROW ── */
+#action-row{display:flex;align-items:center;gap:10px;padding:10px 14px 12px;}
+.btn-race-start{
+  flex:1;background:linear-gradient(135deg,rgba(57,255,20,.15),rgba(57,255,20,.06));
+  border:2px solid var(--green);border-radius:4px;padding:12px;cursor:pointer;
+  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;
+  color:var(--green);text-shadow:0 0 12px var(--green);
+  box-shadow:0 0 20px rgba(57,255,20,.15),inset 0 0 20px rgba(57,255,20,.04);
+  transition:all .15s;position:relative;overflow:hidden;
+}
+.btn-race-start::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(57,255,20,.18),transparent);
+  transform:translateX(-100%);transition:.45s;}
+.btn-race-start:hover::before{transform:translateX(100%);}
+.btn-race-start:hover{background:rgba(57,255,20,.2);box-shadow:0 0 35px rgba(57,255,20,.3);}
+.btn-race-start:active{transform:scale(.98);}
+
+.btn-stop{background:transparent;border:1px solid rgba(255,45,85,.45);border-radius:4px;
+  padding:12px 16px;cursor:pointer;font-family:'Bebas Neue',sans-serif;
+  font-size:16px;letter-spacing:2px;color:var(--neon);
+  box-shadow:0 0 10px rgba(255,45,85,.1);transition:all .15s;}
+.btn-stop:hover{background:rgba(255,45,85,.15);box-shadow:0 0 20px rgba(255,45,85,.3);}
+
+/* ── KM COUNTER (odometer style) ── */
+#odometer-wrap{
+  display:flex;gap:2px;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.06);
+  border-radius:3px;padding:6px 10px;
+}
+.odo-digit{
+  background:#000;border:1px solid rgba(255,45,85,.2);
+  border-radius:2px;width:20px;text-align:center;
+  font-family:'Share Tech Mono',monospace;font-size:14px;
+  color:var(--neon);line-height:1.6;overflow:hidden;
+  box-shadow:inset 0 0 6px rgba(255,45,85,.2);
+}
+.odo-sep{color:var(--dim);font-size:12px;font-family:'Share Tech Mono',monospace;margin:0 1px;}
+
+/* ── NOS BAR ── */
+.nos-wrap{display:flex;align-items:center;gap:6px;padding:0 4px;}
+.nos-track{flex:1;height:6px;background:rgba(0,245,255,.08);border:1px solid rgba(0,245,255,.2);
+  border-radius:2px;overflow:hidden;}
+.nos-fill{height:100%;background:linear-gradient(90deg,#0080FF,var(--cyan));
+  border-radius:2px;transition:width .3s;box-shadow:0 0 8px var(--cyan);}
+.nos-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--cyan);}
+
+/* ── GEAR BIG ── */
+.gear-wrap{display:flex;flex-direction:column;align-items:center;}
+.gear-lbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;color:var(--dim);}
+.gear-val{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--neon);line-height:1;
+  text-shadow:0 0 18px var(--neon),0 0 40px rgba(255,45,85,.3);}
+
+/* ── MISC FABRICS ── */
+.fab{position:fixed;z-index:300;background:var(--card);border:1px solid var(--border);
+  border-radius:3px;width:38px;height:38px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:all .15s;box-shadow:0 0 15px rgba(255,45,85,.08);color:var(--text);
+  font-family:'Share Tech Mono',monospace;font-weight:700;}
+.fab:hover{border-color:var(--neon);box-shadow:0 0 20px rgba(255,45,85,.22);}
+#btn-locate{right:14px;bottom:230px;}
+#btn-report{right:14px;bottom:274px;}
+#btn-zi{right:14px;bottom:318px;}
+#btn-zo{right:14px;bottom:358px;}
+
+/* speed limit sign */
+#speed-limit{position:fixed;right:14px;bottom:402px;z-index:300;
+  width:46px;height:46px;background:var(--bg);border-radius:50%;
+  border:3px solid var(--neon);display:none;align-items:center;justify-content:center;
+  flex-direction:column;box-shadow:0 0 14px rgba(255,45,85,.3);}
+#speed-limit.show{display:flex;}
+#sl-num{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--text);line-height:1;}
+.sl-lbl{font-size:6px;color:var(--dim);letter-spacing:1px;font-family:'Share Tech Mono',monospace;}
+
+/* TOAST */
+.street-toast{position:fixed;top:6px;left:0;right:0;z-index:500;text-align:center;pointer-events:none;padding:0 12px;max-width:440px;margin:0 auto;}
+.toast-inner{display:inline-block;background:var(--card);border:1px solid var(--neon);
+  border-radius:3px;padding:7px 16px;font-size:12px;font-weight:700;letter-spacing:1px;
+  color:var(--neon);text-shadow:0 0 8px rgba(255,45,85,.5);
+  box-shadow:0 0 20px rgba(255,45,85,.15);
+  opacity:0;transition:opacity .3s,transform .3s;transform:translateY(-8px);}
+.toast-inner.show{opacity:1;transform:translateY(0);}
+
+/* REPORT PANEL */
+#report-panel{position:fixed;bottom:-280px;left:0;right:0;z-index:600;
+  background:#0C0E1C;border-top:2px solid var(--neon);padding:16px;
+  transition:bottom .3s ease;max-width:440px;margin:0 auto;
+  box-shadow:0 -10px 40px rgba(255,45,85,.2);}
+#report-panel.open{bottom:0;}
+.report-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;
+  color:var(--neon);text-shadow:0 0 10px var(--neon);margin-bottom:12px;}
+.report-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.rbtn{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:3px;padding:10px 4px;cursor:pointer;text-align:center;transition:all .15s;}
+.rbtn:hover{background:rgba(255,45,85,.1);border-color:var(--neon);}
+.rbtn .ri{font-size:20px;display:block;margin-bottom:3px;}
+.rbtn .rl{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;font-family:'Share Tech Mono',monospace;}
+
+/* NITRO */
+#nitro-flash{position:fixed;inset:0;z-index:800;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(0,245,255,.3) 0%,transparent 70%);opacity:0;}
+@keyframes nitro-burst{0%{opacity:.8}100%{opacity:0}}
+
+/* LOADING */
+#loading{position:fixed;inset:0;z-index:1000;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.load-logo{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:6px;
+  color:var(--neon);text-shadow:0 0 20px var(--neon),0 0 60px rgba(255,45,85,.4);
+  animation:fi 2s ease forwards;}
+@keyframes fi{0%{opacity:0}20%{opacity:.8;text-shadow:0 0 40px var(--neon);}
+  25%{opacity:.3}30%{opacity:1;text-shadow:0 0 60px var(--neon);}
+  100%{opacity:1;text-shadow:0 0 20px var(--neon),0 0 60px rgba(255,45,85,.4);}}
+.load-sub{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--cyan);text-shadow:0 0 8px var(--cyan);}
+.load-bar-wrap{width:220px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden;}
+.load-bar{height:100%;width:0;background:linear-gradient(90deg,var(--neon),var(--cyan));animation:lb 2.2s ease-out forwards;}
+@keyframes lb{to{width:100%}}
+.load-blink{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);animation:blink .9s step-end infinite;}
+
+/* CAR GLOW ANIMATION */
+@keyframes car-glow{
+  0%,100%{filter:drop-shadow(0 0 6px #FF2D55) drop-shadow(0 0 16px rgba(255,45,85,.5));}
+  50%{filter:drop-shadow(0 0 14px #FF2D55) drop-shadow(0 0 28px rgba(255,45,85,.85));}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div style="font-size:50px;animation:car-glow 1s ease-in-out infinite">🚗</div>
+  <div class="load-logo">UNDERGROUND</div>
+  <div class="load-sub">BOYACÁ · STREET RACING NAV</div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
+  <div class="load-blink">▋ CARGANDO CALLES ILEGALES...</div>
+</div>
+
+<!-- NITRO -->
+<div id="nitro-flash"></div>
+
+<!-- MAP + OVERLAYS -->
+<div id="map"></div>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+<div id="progress-bar"></div>
+
+<!-- BRAND -->
+<div id="brand" style="pointer-events:none;">
+  <div>
+    <div class="brand-logo">BOYACÁ UNDERGROUND</div>
+    <div class="brand-sub">STREET RACING NAVIGATION SYSTEM</div>
+  </div>
+  <div class="brand-right">
+    <div class="blink">● LIVE</div>
+    <div id="clock" style="font-size:12px;margin-top:2px;"></div>
+    <div id="gps-badge" style="
+      font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;
+      color:#4a5068;border:1px solid rgba(74,80,104,.3);border-radius:2px;
+      padding:2px 6px;margin-top:3px;transition:all .4s;
+    ">📡 SIM</div>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div id="topbar">
+  <div id="search-card">
+    <div class="field-lbl">// PUNTO DE PARTIDA</div>
+    <div class="search-row" style="position:relative;margin-bottom:4px;">
+      <div class="s-dot origin"></div>
+      <input class="s-input" id="origin-input" placeholder="Selecciona origen..." readonly>
+      <button class="s-clear" id="origin-clear" onclick="clearField('origin')">✕</button>
+      <div class="dropdown" id="origin-dd"></div>
+    </div>
+    <div class="conn-line"></div>
+    <div class="field-lbl" style="margin-top:6px;">// DESTINO</div>
+    <div class="search-row" style="position:relative;">
+      <div class="s-dot dest"></div>
+      <input class="s-input" id="dest-input" placeholder="Selecciona destino..." readonly>
+      <button class="s-clear" id="dest-clear" onclick="clearField('dest')">✕</button>
+      <div class="dropdown" id="dest-dd"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ROUTE CHIPS -->
+<div id="route-chip-row">
+  <div id="rci">
+    <div class="chip-row">
+      <div class="chip time">⏱ <span id="ri-time">—</span></div>
+      <div class="chip dist">📍 <span id="ri-dist">—</span></div>
+      <div class="chip via" id="ri-via">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- SPEED LIMIT -->
+<div id="speed-limit">
+  <span id="sl-num">60</span>
+  <span class="sl-lbl">km/h</span>
+</div>
+
+<!-- FABs -->
+<button class="fab" id="btn-locate" onclick="locateMe()" title="Mi ubicación">📍</button>
+<button class="fab" id="btn-report" onclick="toggleReport()" title="Reportar">⚠</button>
+<button class="fab" id="btn-zi" onclick="map.zoomIn()">+</button>
+<button class="fab" id="btn-zo" onclick="map.zoomOut()">−</button>
+
+<!-- TOAST -->
+<div class="street-toast" id="toast-wrap">
+  <div class="toast-inner" id="toast-inner"></div>
+</div>
+
+<!-- REPORT PANEL -->
+<div id="report-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="report-title">// REPORTAR INCIDENTE</div>
+    <button onclick="toggleReport()" style="background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;">✕</button>
+  </div>
+  <div class="report-grid">
+    <button class="rbtn" onclick="sendReport('TOMBOS','👮')"><span class="ri">👮</span><span class="rl">TOMBOS</span></button>
+    <button class="rbtn" onclick="sendReport('CHOQUE','🚗')"><span class="ri">🚗</span><span class="rl">CHOQUE</span></button>
+    <button class="rbtn" onclick="sendReport('TRANCÓN','🚦')"><span class="ri">🚦</span><span class="rl">TRANCÓN</span></button>
+    <button class="rbtn" onclick="sendReport('HUECO','🕳️')"><span class="ri">🕳️</span><span class="rl">HUECO</span></button>
+    <button class="rbtn" onclick="sendReport('DERRUMBE','⛰️')"><span class="ri">⛰️</span><span class="rl">DERRUMBE</span></button>
+    <button class="rbtn" onclick="sendReport('NIEBLA','🌫️')"><span class="ri">🌫️</span><span class="rl">NIEBLA</span></button>
+    <button class="rbtn" onclick="sendReport('VÍA CERRADA','🚧')"><span class="ri">🚧</span><span class="rl">CERRADA</span></button>
+    <button class="rbtn" onclick="sendReport('GANADO','🐄')"><span class="ri">🐄</span><span class="rl">GANADO</span></button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     BOTTOM DASHBOARD
+══════════════════════════════════════ -->
+<div id="dashboard">
+
+  <!-- IDLE STATE -->
+  <div id="dash-idle">
+    <div class="idle-hint">// SELECCIONA ORIGEN Y DESTINO PARA INICIAR</div>
+
+    <button class="btn-big-go" id="btn-big-go" onclick="handleMainBtn()">
+      🏎 &nbsp;INICIAR NAVEGACIÓN
+    </button>
+
+    <div class="idle-stats">
+      <div class="idle-stat">
+        <span class="is-val" id="idle-km">—</span>
+        <span class="is-lbl">DISTANCIA</span>
+      </div>
+      <div class="idle-stat">
+        <span class="is-val" id="idle-time">—</span>
+        <span class="is-lbl">TIEMPO EST.</span>
+      </div>
+      <div class="idle-stat">
+        <span class="is-val" id="idle-via" style="font-size:13px;padding-top:4px;">—</span>
+        <span class="is-lbl">RUTA</span>
+      </div>
+      <div class="idle-stat">
+        <span class="is-val" id="idle-cities">24</span>
+        <span class="is-lbl">CIUDADES</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RACE STATE -->
+  <div id="dash-race">
+
+    <!-- Turn strip -->
+    <div id="nav-strip">
+      <div class="arrow-box" id="arrow-box">↑</div>
+      <div style="flex:1;">
+        <div class="nav-dist-big" id="nav-dist-big">—</div>
+        <div class="nav-street-name" id="nav-street">CALCULANDO...</div>
+      </div>
+      <!-- NOS -->
+      <div style="width:90px;">
+        <div class="nos-lbl" style="margin-bottom:4px;">NOS</div>
+        <div class="nos-track"><div class="nos-fill" id="nos-fill" style="width:80%"></div></div>
+        <div class="nos-lbl" style="margin-top:3px;" id="nos-pct">80%</div>
+      </div>
+    </div>
+
+    <!-- Telemetry grid -->
+    <div id="tele-grid">
+      <!-- KM recorrido -->
+      <div class="tele-cell">
+        <span class="tc-val cyan" id="tele-km-done">0.0</span>
+        <span class="tc-lbl">KM RECORRIDOS</span>
+      </div>
+      <!-- KM restante -->
+      <div class="tele-cell">
+        <span class="tc-val green" id="tele-km-left">—</span>
+        <span class="tc-lbl">KM RESTANTES</span>
+      </div>
+      <!-- ETA -->
+      <div class="tele-cell">
+        <span class="tc-val yellow" id="tele-eta">—</span>
+        <span class="tc-lbl">ETA</span>
+      </div>
+
+      <!-- SPEEDOMETER -->
+      <div class="spdo-cell">
+        <div class="spdo">
+          <svg viewBox="0 0 68 68" fill="none">
+            <circle cx="34" cy="34" r="28" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <circle cx="34" cy="34" r="28" stroke="url(#sg)" stroke-width="5"
+              stroke-linecap="round" stroke-dasharray="145" stroke-dashoffset="145"
+              id="spd-arc" transform="rotate(-90 34 34)"/>
+            <defs>
+              <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#39FF14"/>
+                <stop offset="50%" stop-color="#00F5FF"/>
+                <stop offset="100%" stop-color="#FF2D55"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="spdo-inner">
+            <span class="spdo-val" id="spd-val">0</span>
+            <span class="spdo-unit">KM/H</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GEAR -->
+      <div class="tele-cell" style="display:flex;align-items:center;justify-content:center;">
+        <div class="gear-wrap">
+          <div class="gear-lbl">GEAR</div>
+          <div class="gear-val" id="gear-val">N</div>
+        </div>
+      </div>
+
+      <!-- PROGRESS % -->
+      <div class="tele-cell">
+        <span class="tc-val neon" id="tele-pct">0%</span>
+        <span class="tc-lbl">PROGRESO</span>
+      </div>
+    </div>
+
+    <!-- Odometer row -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 14px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);">ODO</span>
+      <div id="odometer-wrap">
+        <div class="odo-digit" id="od0">0</div>
+        <div class="odo-digit" id="od1">0</div>
+        <div class="odo-digit" id="od2">0</div>
+        <div class="odo-sep">.</div>
+        <div class="odo-digit" id="od3">0</div>
+        <div class="odo-digit" id="od4">0</div>
+      </div>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);">KM</span>
+    </div>
+
+    <!-- Action row -->
+    <div id="action-row">
+      <button class="btn-race-start" id="btn-race-start" onclick="handleRaceBtn()">
+        ⚡ &nbsp;INICIAR CARRERA
+      </button>
+      <button class="btn-stop" onclick="stopNav()">✕ SALIR</button>
+    </div>
+
+  </div><!-- /dash-race -->
+</div><!-- /dashboard -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ═══════════════════════════════════
+//  DATA
+// ═══════════════════════════════════
+const CIUDADES=[
+  {id:'tunja',       name:'Tunja',                  lat:5.5353, lon:-73.3678,icon:'🏛️',tag:'CAPITAL · BOY'},
+  {id:'duitama',     name:'Duitama',                lat:5.8218, lon:-73.0283,icon:'🏭',tag:'CIUDAD · BOY'},
+  {id:'sogamoso',    name:'Sogamoso',               lat:5.7154, lon:-72.9309,icon:'⛏️',tag:'CIUDAD · BOY'},
+  {id:'chiquinquira',name:'Chiquinquirá',           lat:5.6171, lon:-73.8193,icon:'⛪',tag:'CIUDAD · BOY'},
+  {id:'villa-leyva', name:'Villa de Leyva',         lat:5.6344, lon:-73.5244,icon:'🏰',tag:'TURISMO · BOY'},
+  {id:'paipa',       name:'Paipa',                  lat:5.7713, lon:-73.1163,icon:'♨️',tag:'TURISMO · BOY'},
+  {id:'moniquira',   name:'Moniquirá',              lat:6.0807, lon:-73.5720,icon:'🌿',tag:'PUEBLO · BOY'},
+  {id:'guateque',    name:'Guateque',               lat:5.0041, lon:-73.4677,icon:'🏔️',tag:'CIUDAD · BOY'},
+  {id:'garagoa',     name:'Garagoa',                lat:5.0848, lon:-73.3620,icon:'🌄',tag:'PUEBLO · BOY'},
+  {id:'santa-rosa',  name:'Santa Rosa de Viterbo', lat:5.8757, lon:-72.9966,icon:'🌸',tag:'PUEBLO · BOY'},
+  {id:'nobsa',       name:'Nobsa',                  lat:5.7665, lon:-72.9437,icon:'🏺',tag:'PUEBLO · BOY'},
+  {id:'paz-rio',     name:'Paz de Río',             lat:5.9747, lon:-72.7650,icon:'⚙️',tag:'PUEBLO · BOY'},
+  {id:'raquira',     name:'Ráquira',                lat:5.5228, lon:-73.6394,icon:'🎨',tag:'ARTESANÍA · BOY'},
+  {id:'arcabuco',    name:'Arcabuco',               lat:5.7592, lon:-73.4542,icon:'🌲',tag:'PUEBLO · BOY'},
+  {id:'combita',     name:'Combitá',                lat:5.6302, lon:-73.2838,icon:'🌾',tag:'PUEBLO · BOY'},
+  {id:'belen',       name:'Belén',                  lat:6.0242, lon:-72.9340,icon:'⛰️',tag:'PUEBLO · BOY'},
+  {id:'tuta',        name:'Tuta',                   lat:5.6774, lon:-73.1804,icon:'🌿',tag:'PUEBLO · BOY'},
+  {id:'aquitania',   name:'Aquitania',              lat:5.5173, lon:-72.8859,icon:'🏞️',tag:'LAGO · BOY'},
+  {id:'samaca',      name:'Samacá',                 lat:5.4871, lon:-73.4893,icon:'🌾',tag:'PUEBLO · BOY'},
+  {id:'ramiriqui',   name:'Ramiriquí',              lat:5.4023, lon:-73.3385,icon:'🏡',tag:'PUEBLO · BOY'},
+  {id:'miraflores',  name:'Miraflores',             lat:5.2014, lon:-73.1468,icon:'🌺',tag:'PUEBLO · BOY'},
+  {id:'togui',       name:'Togüí',                  lat:6.0966, lon:-73.5469,icon:'🌿',tag:'PUEBLO · BOY'},
+  {id:'tipacoque',   name:'Tipacoque',              lat:6.4228, lon:-72.6652,icon:'🏔️',tag:'PUEBLO · BOY'},
+  {id:'siachoque',   name:'Siachoque',              lat:5.5056, lon:-73.1938,icon:'🌾',tag:'PUEBLO · BOY'},
+];
+
+// ═══════════════════════════════════
+//  MAP
+// ═══════════════════════════════════
+const map=L.map('map',{center:[5.65,-73.2],zoom:10,zoomControl:false,attributionControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(map);
+
+// ═══════════════════════════════════
+//  STATE
+// ═══════════════════════════════════
+let originCity=null,destCity=null;
+let originMarker=null,destMarker=null,routeLayer=null,carMarker=null;
+let routeCoords=[],routeSteps=[],totalLen=0,routeReady=false;
+let navActive=false,navTimer=null,simSpeed=0,nosLevel=80,kmDone=0;
+let ptIdx=0;
+
+// GPS state
+let gpsWatchId=null,gpsMode=false;
+let lastGpsPos=null,lastGpsTime=null,lastGpsHeading=0;
+let gpsAccMarker=null,gpsSignalOk=false;
+let closestPtIdx=0; // snapping index on route
+
+// ── Clock ──
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    n.getHours().toString().padStart(2,'0')+':'+
+    n.getMinutes().toString().padStart(2,'0')+':'+
+    n.getSeconds().toString().padStart(2,'0');
+},1000);
+
+// ═══════════════════════════════════
+//  ICONS
+// ═══════════════════════════════════
+function pinIcon(emoji,color){
+  return L.divIcon({html:`
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="width:36px;height:36px;background:${color};border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);border:2px solid rgba(255,255,255,.3);
+        box-shadow:0 0 14px ${color},0 0 28px ${color}55;
+        display:flex;align-items:center;justify-content:center;">
+        <span style="transform:rotate(45deg);font-size:16px;">${emoji}</span>
+      </div>
+      <div style="width:2px;height:7px;background:${color};box-shadow:0 0 6px ${color};margin-top:-1px;"></div>
+    </div>`,className:'',iconSize:[36,47],iconAnchor:[18,47]});
+}
+
+function carIcon(h=0){
+  return L.divIcon({html:`
+    <div style="transform:rotate(${h}deg);animation:car-glow 1s ease-in-out infinite;">
+      <svg width="28" height="50" viewBox="0 0 28 50" fill="none">
+        <ellipse cx="9" cy="47" rx="3" ry="4" fill="#FF6B00" opacity=".85"/>
+        <ellipse cx="19" cy="47" rx="3" ry="4" fill="#FF6B00" opacity=".85"/>
+        <ellipse cx="9" cy="49" rx="1.8" ry="2.5" fill="#FFE600" opacity=".9"/>
+        <ellipse cx="19" cy="49" rx="1.8" ry="2.5" fill="#FFE600" opacity=".9"/>
+        <rect x="4" y="10" width="20" height="32" rx="4" fill="#CC0000"/>
+        <rect x="5" y="6" width="18" height="11" rx="3" fill="#AA0000"/>
+        <rect x="1" y="5" width="26" height="4" rx="1" fill="#CC0000"/>
+        <rect x="0" y="4" width="4" height="6" rx="1" fill="#880000"/>
+        <rect x="24" y="4" width="4" height="6" rx="1" fill="#880000"/>
+        <rect x="8" y="13" width="12" height="9" rx="2" fill="#001133"/>
+        <circle cx="14" cy="17" r="3.5" fill="#222"/>
+        <circle cx="14" cy="16" r="2" fill="#333"/>
+        <rect x="2" y="38" width="24" height="4" rx="1" fill="#CC0000"/>
+        <rect x="1" y="36" width="4" height="7" rx="1" fill="#880000"/>
+        <rect x="23" y="36" width="4" height="7" rx="1" fill="#880000"/>
+        <rect x="0" y="12" width="5" height="9" rx="2" fill="#111"/>
+        <rect x="23" y="12" width="5" height="9" rx="2" fill="#111"/>
+        <rect x="0" y="29" width="5" height="9" rx="2" fill="#111"/>
+        <rect x="23" y="29" width="5" height="9" rx="2" fill="#111"/>
+        <circle cx="2.5" cy="16.5" r="1.8" fill="#333" stroke="#555" stroke-width=".5"/>
+        <circle cx="25.5" cy="16.5" r="1.8" fill="#333" stroke="#555" stroke-width=".5"/>
+        <circle cx="2.5" cy="33.5" r="1.8" fill="#333" stroke="#555" stroke-width=".5"/>
+        <circle cx="25.5" cy="33.5" r="1.8" fill="#333" stroke="#555" stroke-width=".5"/>
+        <rect x="2" y="40" width="24" height="1.5" rx=".75" fill="#FF2D55" opacity=".7"/>
+        <rect x="13" y="6" width="2" height="34" fill="#FFE600" opacity=".45"/>
+        <rect x="5" y="5" width="5" height="1.5" rx=".75" fill="#00F5FF" opacity=".95"/>
+        <rect x="18" y="5" width="5" height="1.5" rx=".75" fill="#00F5FF" opacity=".95"/>
+      </svg>
+    </div>`,className:'',iconSize:[28,50],iconAnchor:[14,38]});
+}
+
+// ═══════════════════════════════════
+//  DROPDOWNS
+// ═══════════════════════════════════
+function buildDD(ddEl,type){
+  ddEl.innerHTML='';
+  CIUDADES.forEach(c=>{
+    const item=document.createElement('div');
+    item.className='dd-item';
+    item.innerHTML=`<span class="dd-icon">${c.icon}</span>
+      <div><div class="dd-name">${c.name}</div><div class="dd-sub">${c.tag}</div></div>`;
+    item.onclick=()=>{
+      selectCity(type,c);
+      ddEl.classList.remove('open');
+    };
+    ddEl.appendChild(item);
+  });
+}
+buildDD(document.getElementById('origin-dd'),'origin');
+buildDD(document.getElementById('dest-dd'),'dest');
+
+function selectCity(type,c){
+  if(type==='origin'){
+    originCity=c;
+    document.getElementById('origin-input').value=c.name;
+    document.getElementById('origin-clear').style.display='block';
+    if(originMarker)map.removeLayer(originMarker);
+    originMarker=L.marker([c.lat,c.lon],{icon:pinIcon(c.icon,'#39FF14')}).addTo(map)
+      .bindPopup(`<b>${c.icon} ${c.name}</b><br><span style="color:#888;font-size:11px">PUNTO DE PARTIDA</span>`);
+    showToast('📍 ORIGEN: '+c.name.toUpperCase());
+  } else {
+    destCity=c;
+    document.getElementById('dest-input').value=c.name;
+    document.getElementById('dest-clear').style.display='block';
+    if(destMarker)map.removeLayer(destMarker);
+    destMarker=L.marker([c.lat,c.lon],{icon:pinIcon(c.icon,'#FF2D55')}).addTo(map)
+      .bindPopup(`<b>${c.icon} ${c.name}</b><br><span style="color:#888;font-size:11px">DESTINO</span>`);
+    showToast('🏁 DESTINO: '+c.name.toUpperCase());
+  }
+  if(originCity&&destCity){
+    map.fitBounds([[originCity.lat,originCity.lon],[destCity.lat,destCity.lon]],{padding:[90,90]});
+    updateIdleStats();
+    // Auto-fetch route
+    fetchRoute();
+  }
+}
+
+['origin','dest'].forEach(t=>{
+  const inp=document.getElementById(t+'-input');
+  const dd=document.getElementById(t+'-dd');
+  inp.addEventListener('click',e=>{
+    e.stopPropagation();
+    document.querySelectorAll('.dropdown').forEach(d=>d!==dd&&d.classList.remove('open'));
+    dd.classList.toggle('open');
+  });
+});
+document.addEventListener('click',()=>document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open')));
+
+function clearField(type){
+  if(type==='origin'){
+    originCity=null;document.getElementById('origin-input').value='';
+    document.getElementById('origin-clear').style.display='none';
+    if(originMarker){map.removeLayer(originMarker);originMarker=null;}
+  } else {
+    destCity=null;document.getElementById('dest-input').value='';
+    document.getElementById('dest-clear').style.display='none';
+    if(destMarker){map.removeLayer(destMarker);destMarker=null;}
+  }
+  routeReady=false;
+  clearOldRoute();
+  document.getElementById('route-chip-row').classList.remove('show');
+  document.getElementById('btn-big-go').classList.remove('ready');
+  resetIdleStats();
+}
+
+// ═══════════════════════════════════
+//  ROUTING — OSRM
+// ═══════════════════════════════════
+async function fetchRoute(){
+  if(!originCity||!destCity)return;
+  routeReady=false;
+  showToast('📡 CALCULANDO RUTA REAL...');
+  clearOldRoute();
+
+  const endpoints=[
+    `https://router.project-osrm.org/route/v1/driving/${originCity.lon},${originCity.lat};${destCity.lon},${destCity.lat}?overview=full&geometries=geojson&steps=true`,
+    `https://routing.openstreetmap.de/routed-car/route/v1/driving/${originCity.lon},${originCity.lat};${destCity.lon},${destCity.lat}?overview=full&geometries=geojson&steps=true`,
+  ];
+
+  let success=false;
+  for(const url of endpoints){
+    try{
+      const res=await fetch(url,{signal:AbortSignal.timeout(9000)});
+      if(!res.ok)continue;
+      const data=await res.json();
+      if(data.code!=='Ok'||!data.routes?.length)continue;
+
+      const route=data.routes[0];
+      routeCoords=route.geometry.coordinates.map(c=>[c[1],c[0]]);// [lon,lat]→[lat,lon]
+      totalLen=route.distance;
+      routeSteps=(route.legs[0]?.steps||[]).map(s=>({
+        arrow:arrowFor(s.maneuver?.type,s.maneuver?.modifier),
+        street:(s.name||'VÍA PRINCIPAL').toUpperCase(),
+        dist:Math.round(s.distance),
+      }));
+
+      const km=(totalLen/1000).toFixed(1);
+      const mins=Math.round(route.duration/60);
+      const timeStr=mins<60?mins+' MIN':Math.floor(mins/60)+'H '+(mins%60)+'M';
+
+      drawRoute(routeCoords,'#00F5FF');
+      map.fitBounds(L.polyline(routeCoords).getBounds(),{padding:[100,100]});
+      updateInfoUI(km,timeStr);
+      showToast('✅ RUTA REAL · '+km+' KM · '+timeStr);
+      success=true;break;
+    }catch(e){console.warn('OSRM attempt failed:',e);}
+  }
+
+  if(!success){
+    // Fallback straight line with realistic estimate
+    routeCoords=[[originCity.lat,originCity.lon],[destCity.lat,destCity.lon]];
+    totalLen=calcDist(originCity.lat,originCity.lon,destCity.lat,destCity.lon);
+    const km=(totalLen/1000).toFixed(1);
+    const mins=Math.round(totalLen/1000*1.4);
+    const timeStr=mins<60?mins+' MIN':Math.floor(mins/60)+'H '+(mins%60)+'M';
+    routeSteps=[{arrow:'↑',street:'VÍA DIRECTA',dist:totalLen}];
+    drawRoute(routeCoords,'#FF6B00');
+    map.fitBounds(L.polyline(routeCoords).getBounds(),{padding:[100,100]});
+    updateInfoUI(km,timeStr);
+    showToast('⚠️ SIN CONEXIÓN — RUTA APROXIMADA');
+  }
+}
+
+function drawRoute(coords,color){
+  L.polyline(coords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
+  L.polyline(coords,{color:color,weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
+  L.polyline(coords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
+  routeLayer=L.polyline(coords,{color:'rgba(0,0,0,0)',weight:0}).addTo(map);// invisible ref
+}
+
+function clearOldRoute(){
+  map.eachLayer(l=>{if(l instanceof L.Polyline)map.removeLayer(l);});
+}
+
+function updateInfoUI(km,timeStr){
+  document.getElementById('ri-time').textContent=timeStr;
+  document.getElementById('ri-dist').textContent=km+' KM';
+  document.getElementById('ri-via').textContent='// '+originCity.name.toUpperCase()+' → '+destCity.name.toUpperCase();
+  document.getElementById('route-chip-row').classList.add('show');
+  // Idle stats
+  document.getElementById('idle-km').textContent=km+' km';
+  document.getElementById('idle-time').textContent=timeStr;
+  document.getElementById('idle-via').textContent=originCity.name.split(' ')[0]+' → '+destCity.name.split(' ')[0];
+  // Activate big button
+  document.getElementById('btn-big-go').classList.add('ready');
+  document.getElementById('btn-big-go').textContent='🏎   INICIAR CARRERA';
+  routeReady=true;
+}
+
+function updateIdleStats(){
+  document.getElementById('idle-km').textContent='...';
+  document.getElementById('idle-time').textContent='...';
+}
+function resetIdleStats(){
+  document.getElementById('idle-km').textContent='—';
+  document.getElementById('idle-time').textContent='—';
+  document.getElementById('idle-via').textContent='—';
+  document.getElementById('btn-big-go').textContent='🏎   INICIAR NAVEGACIÓN';
+  document.getElementById('btn-big-go').classList.remove('ready');
+}
+
+// ═══════════════════════════════════
+//  MAIN BUTTON HANDLER
+// ═══════════════════════════════════
+function handleMainBtn(){
+  if(!originCity||!destCity){showToast('👆 SELECCIONA ORIGEN Y DESTINO');return;}
+  if(!routeReady){showToast('⏳ CALCULANDO RUTA...');return;}
+  switchToDash('race');
+}
+
+function handleRaceBtn(){
+  if(!navActive) startNav();
+}
+
+function switchToDash(mode){
+  if(mode==='race'){
+    document.getElementById('dash-idle').style.display='none';
+    document.getElementById('dash-race').classList.add('show');
+    document.getElementById('speed-limit').classList.add('show');
+  } else {
+    document.getElementById('dash-idle').style.display='block';
+    document.getElementById('dash-race').classList.remove('show');
+    document.getElementById('speed-limit').classList.remove('show');
+  }
+}
+
+// ═══════════════════════════════════
+//  NAVIGATION — GPS REAL + SIM FALLBACK
+// ═══════════════════════════════════
+
+/* ── Closest point on route to a GPS coord ── */
+function snapToRoute(lat,lon){
+  let best=0,bestD=Infinity;
+  // Search from last known point forward (±50 pts) for performance
+  const from=Math.max(0,closestPtIdx-5);
+  const to=Math.min(routeCoords.length-1,closestPtIdx+80);
+  for(let i=from;i<=to;i++){
+    const d=calcDist(lat,lon,routeCoords[i][0],routeCoords[i][1]);
+    if(d<bestD){bestD=d;best=i;}
+  }
+  // If nothing close in window, do full search (GPS jump)
+  if(bestD>300){
+    for(let i=0;i<routeCoords.length;i++){
+      const d=calcDist(lat,lon,routeCoords[i][0],routeCoords[i][1]);
+      if(d<bestD){bestD=d;best=i;}
+    }
+  }
+  return{idx:best,distOff:bestD};
+}
+
+/* ── GPS update handler ── */
+function onGpsUpdate(pos){
+  if(!navActive)return;
+  const lat=pos.coords.latitude, lon=pos.coords.longitude;
+  const acc=pos.coords.accuracy;          // metres
+  const rawSpd=pos.coords.speed;          // m/s or null
+  const rawHdg=pos.coords.heading;        // degrees or null
+  const now=Date.now();
+
+  gpsSignalOk=true;
+  updateGpsSignalUI(true,acc);
+
+  // Accuracy circle
+  if(gpsAccMarker)map.removeLayer(gpsAccMarker);
+  if(acc<200){
+    gpsAccMarker=L.circle([lat,lon],{radius:acc,color:'#00F5FF',fillColor:'#00F5FF',
+      fillOpacity:.06,weight:1,opacity:.3}).addTo(map);
+  }
+
+  // Snap to route
+  const snap=snapToRoute(lat,lon);
+  closestPtIdx=snap.idx;
+  const onRoute=snap.distOff<150; // within 150 m of route
+
+  // Use snapped position if close, raw GPS if off-route
+  const displayPos=onRoute?routeCoords[snap.idx]:[lat,lon];
+  const pct=snap.idx/(routeCoords.length-1);
+
+  // Heading — prefer GPS heading if moving, else compute from route
+  let hdg=lastGpsHeading;
+  if(rawHdg!=null&&rawHdg>=0&&(rawSpd||0)>0.5){
+    hdg=rawHdg;
+  } else if(snap.idx>0){
+    hdg=bearing(routeCoords[Math.max(0,snap.idx-1)],routeCoords[snap.idx]);
+  }
+  lastGpsHeading=hdg;
+
+  // Speed — use GPS speed if available, smooth it
+  let spd=simSpeed;
+  if(rawSpd!=null&&rawSpd>=0){
+    const gpsKmh=rawSpd*3.6;
+    spd=simSpeed*.4+gpsKmh*.6; // blend for smoothness
+  } else {
+    // estimate from distance between last two positions
+    if(lastGpsPos&&lastGpsTime){
+      const dt=(now-lastGpsTime)/1000;
+      if(dt>0&&dt<10){
+        const dm=calcDist(lastGpsPos[0],lastGpsPos[1],lat,lon);
+        spd=Math.min((dm/dt)*3.6,220);
+      }
+    }
+  }
+  simSpeed=Math.max(0,Math.min(spd,220));
+  lastGpsPos=[lat,lon];lastGpsTime=now;
+
+  // KM done along route
+  kmDone=0;
+  for(let i=1;i<=snap.idx&&i<routeCoords.length;i++){
+    kmDone+=calcDist(routeCoords[i-1][0],routeCoords[i-1][1],routeCoords[i][0],routeCoords[i][1])/1000;
+  }
+
+  // Move car marker
+  carMarker.setLatLng(displayPos);
+  carMarker.setIcon(carIcon(hdg));
+  map.panTo(displayPos,{animate:true,duration:.3,easeLinearity:1});
+
+  // Off-route warning
+  if(!onRoute&&snap.distOff>200){
+    showToast('⚠️ FUERA DE RUTA — RECALCULANDO...');
+    // Auto-recalculate from current position toward dest
+    recalcFromPos(lat,lon);
+    return;
+  }
+
+  // Update all telemetry
+  updateTelemetry(pct,snap.idx);
+
+  // Arrival check — within 80 m of destination
+  const distToDest=calcDist(lat,lon,destCity.lat,destCity.lon);
+  if(distToDest<80){stopGps();arrive();return;}
+}
+
+function onGpsError(err){
+  gpsSignalOk=false;
+  updateGpsSignalUI(false,0);
+  const msgs={1:'❌ PERMISO GPS DENEGADO — MODO SIM',2:'⚠️ GPS FUERA DE COBERTURA',3:'⏱️ GPS TIMEOUT'};
+  showToast(msgs[err.code]||'⚠️ ERROR GPS — MODO SIM');
+  if(err.code===1){
+    // Permission denied → fallback to simulation immediately
+    startSimMode();
+  }
+}
+
+/* ── Recalculate route from current GPS pos ── */
+async function recalcFromPos(lat,lon){
+  if(!destCity)return;
+  try{
+    const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${destCity.lon},${destCity.lat}?overview=full&geometries=geojson&steps=true`;
+    const res=await fetch(url,{signal:AbortSignal.timeout(6000)});
+    const data=await res.json();
+    if(data.code!=='Ok'||!data.routes?.length)return;
+    const route=data.routes[0];
+    routeCoords=route.geometry.coordinates.map(c=>[c[1],c[0]]);
+    totalLen=route.distance;closestPtIdx=0;kmDone=0;
+    routeSteps=(route.legs[0]?.steps||[]).map(s=>({
+      arrow:arrowFor(s.maneuver?.type,s.maneuver?.modifier),
+      street:(s.name||'VÍA PRINCIPAL').toUpperCase(),dist:Math.round(s.distance)
+    }));
+    clearOldRoute();
+    L.polyline(routeCoords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
+    L.polyline(routeCoords,{color:'#39FF14',weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
+    L.polyline(routeCoords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
+    showToast('✅ RUTA RECALCULADA');
+  }catch(e){console.warn('Recalc failed',e);}
+}
+
+/* ── GPS signal UI ── */
+function updateGpsSignalUI(ok,acc){
+  const el=document.getElementById('gps-badge');
+  if(!el)return;
+  if(ok){
+    el.style.color='#39FF14';el.style.borderColor='rgba(57,255,20,.4)';
+    el.style.textShadow='0 0 8px #39FF14';
+    el.textContent=acc<20?'📡 GPS ●●●':acc<50?'📡 GPS ●●○':'📡 GPS ●○○';
+  } else {
+    el.style.color='#FF2D55';el.style.borderColor='rgba(255,45,85,.4)';
+    el.style.textShadow='0 0 8px #FF2D55';
+    el.textContent='📡 SIM';
+  }
+}
+
+/* ── Start GPS watch ── */
+function startGps(){
+  if(!navigator.geolocation){startSimMode();return;}
+  showToast('📡 BUSCANDO SEÑAL GPS...');
+  updateGpsSignalUI(false,0);
+  gpsWatchId=navigator.geolocation.watchPosition(onGpsUpdate,onGpsError,{
+    enableHighAccuracy:true,
+    timeout:8000,
+    maximumAge:1000
+  });
+  // If no GPS fix in 8s → fallback sim
+  setTimeout(()=>{
+    if(!gpsSignalOk&&navActive){
+      showToast('⏱️ SIN GPS — MODO SIMULACIÓN');
+      startSimMode();
+    }
+  },8000);
+}
+
+/* ── Stop GPS watch ── */
+function stopGps(){
+  if(gpsWatchId!=null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
+  if(gpsAccMarker){map.removeLayer(gpsAccMarker);gpsAccMarker=null;}
+  gpsSignalOk=false;
+}
+
+/* ── Simulation fallback (when GPS unavailable) ── */
+function startSimMode(){
+  gpsMode=false;
+  updateGpsSignalUI(false,0);
+  if(navTimer)return; // already running
+  const total=routeCoords.length;
+  const interval=total>100?85:130;
+  let alertFired={};
+  navTimer=setInterval(()=>{
+    if(!navActive){clearInterval(navTimer);navTimer=null;return;}
+    if(ptIdx>=total-1){clearInterval(navTimer);navTimer=null;arrive();return;}
+    ptIdx++;
+    const pct=ptIdx/(total-1);
+    const pos=routeCoords[ptIdx];
+    const prev=routeCoords[Math.max(0,ptIdx-1)];
+    const hdg=bearing(prev,pos);
+    carMarker.setLatLng(pos);carMarker.setIcon(carIcon(hdg));
+    map.panTo(pos,{animate:true,duration:.22,easeLinearity:1});
+    const tgt=pct<.04?pct*2200:pct>.93?(1-pct)*2200:75+Math.sin(ptIdx*.45)*28+Math.random()*8;
+    simSpeed+=(tgt-simSpeed)*.07;simSpeed=Math.max(0,Math.min(simSpeed,210));
+    closestPtIdx=ptIdx;
+    if(ptIdx>0) kmDone+=calcDist(prev[0],prev[1],pos[0],pos[1])/1000;
+    updateTelemetry(pct,ptIdx);
+    const alertPts={12:'👮 TOMBOS 2 KM ADELANTE',32:'🕳️ HUECO — CUIDADO PILOTO',54:'🐄 GANADO EN LA VÍA',78:'🌫️ ZONA DE NIEBLA'};
+    for(const k in alertPts){if(ptIdx===Math.floor(total*(+k/100))&&!alertFired[k]){alertFired[k]=1;showToast(alertPts[k]);}}
+  },interval);
+}
+
+/* ── Shared telemetry update ── */
+function updateTelemetry(pct,idx){
+  const kmLeft=Math.max(0,totalLen/1000-kmDone);
+  const remMin=Math.max(0,Math.round(kmLeft*1.3));
+  const etaStr=remMin<60?remMin+' MIN':Math.floor(remMin/60)+'H '+(remMin%60)+'M';
+  updateSpeedUI(simSpeed);updateGear(simSpeed);updateOdometer(kmDone);
+  document.getElementById('tele-km-done').textContent=kmDone.toFixed(1);
+  document.getElementById('tele-km-left').textContent=kmLeft.toFixed(1);
+  document.getElementById('tele-eta').textContent=etaStr;
+  document.getElementById('tele-pct').textContent=Math.round(pct*100)+'%';
+  document.getElementById('progress-bar').style.width=(pct*100)+'%';
+  nosLevel=Math.max(15,nosLevel-(simSpeed>90?.04:-.015));
+  document.getElementById('nos-fill').style.width=nosLevel+'%';
+  document.getElementById('nos-pct').textContent=Math.round(nosLevel)+'%';
+  const si=Math.min(Math.floor(pct*routeSteps.length),routeSteps.length-1);
+  if(routeSteps[si]){
+    const s=routeSteps[si];
+    document.getElementById('arrow-box').textContent=s.arrow;
+    document.getElementById('nav-street').textContent=s.street;
+    const remD=Math.round(kmLeft*1000);
+    document.getElementById('nav-dist-big').textContent=remD>999?(remD/1000).toFixed(1)+' KM':remD+' M';
+  }
+}
+
+/* ── Main startNav ── */
+function startNav(){
+  if(!routeCoords.length)return;
+  navActive=true;ptIdx=0;simSpeed=0;kmDone=0;nosLevel=80;closestPtIdx=0;
+  gpsSignalOk=false;lastGpsPos=null;lastGpsTime=null;
+  document.getElementById('progress-bar').style.display='block';
+  document.getElementById('btn-race-start').textContent='⚡  EN CARRERA...';
+  document.getElementById('btn-race-start').disabled=true;
+
+  if(carMarker)map.removeLayer(carMarker);
+  carMarker=L.marker(routeCoords[0],{icon:carIcon(0),zIndexOffset:2000}).addTo(map);
+
+  clearOldRoute();
+  L.polyline(routeCoords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
+  L.polyline(routeCoords,{color:'#39FF14',weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
+  L.polyline(routeCoords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
+
+  map.setView(routeCoords[0],15,{animate:true,duration:1.2});
+  nitroFlash();
+
+  // Try GPS first
+  if(navigator.geolocation){
+    gpsMode=true;
+    startGps();
+  } else {
+    startSimMode();
+  }
+}
+
+function arrive(){
+  navActive=false;stopGps();clearInterval(navTimer);navTimer=null;
+  document.getElementById('arrow-box').textContent='🏁';
+  document.getElementById('nav-street').textContent='¡LLEGASTE A '+destCity.name.toUpperCase()+'!';
+  document.getElementById('nav-dist-big').textContent='META';
+  document.getElementById('tele-km-left').textContent='0.0';
+  document.getElementById('tele-eta').textContent='0 MIN';
+  document.getElementById('tele-pct').textContent='100%';
+  document.getElementById('progress-bar').style.width='100%';
+  updateSpeedUI(0);document.getElementById('gear-val').textContent='P';
+  document.getElementById('btn-race-start').textContent='🏁  LLEGASTE';
+  nitroFlash();setTimeout(nitroFlash,400);setTimeout(nitroFlash,800);
+  showToast('🏁 ¡CARRERA COMPLETA! · '+destCity.name.toUpperCase());
+  if(destMarker)destMarker.openPopup();
+}
+
+function stopNav(){
+  stopGps();clearInterval(navTimer);navTimer=null;navActive=false;
+  document.getElementById('progress-bar').style.display='none';
+  if(carMarker){map.removeLayer(carMarker);carMarker=null;}
+  updateSpeedUI(0);document.getElementById('gear-val').textContent='N';
+  document.getElementById('btn-race-start').textContent='⚡   INICIAR CARRERA';
+  document.getElementById('btn-race-start').disabled=false;
+  switchToDash('idle');clearOldRoute();
+  if(routeCoords.length)drawRoute(routeCoords,'#00F5FF');
+  updateGpsSignalUI(false,0);
+}
+
+// ═══════════════════════════════════
+//  SPEED / GEAR / ODOMETER
+// ═══════════════════════════════════
+function updateSpeedUI(spd){
+  document.getElementById('spd-val').textContent=Math.round(spd);
+  document.getElementById('spd-arc').style.strokeDashoffset=145*(1-Math.min(spd/210,1));
+  const sl=document.getElementById('sl-num');
+  sl.textContent=spd>80?'⚠ 60':'60';
+  document.getElementById('speed-limit').style.borderColor=spd>80?'#FF2D55':'#FF2D55';
+  document.getElementById('speed-limit').style.boxShadow=spd>80?'0 0 20px rgba(255,45,85,.6)':'0 0 14px rgba(255,45,85,.3)';
+}
+
+function updateGear(spd){
+  const g=spd<=0?'N':spd<25?'1':spd<50?'2':spd<82?'3':spd<118?'4':spd<155?'5':spd<188?'6':'7';
+  const el=document.getElementById('gear-val');
+  if(el.textContent!==g){el.textContent=g;el.style.animation='none';void el.offsetWidth;el.style.animation='';}
+}
+
+function updateOdometer(km){
+  const str=km.toFixed(2).replace('.','').padStart(5,'0');
+  for(let i=0;i<5;i++){
+    const el=document.getElementById('od'+i);
+    if(el) el.textContent=str[i]||'0';
+  }
+}
+
+// ═══════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════
+function bearing(start,end){
+  const dL=(end[1]-start[1])*Math.PI/180;
+  const la1=start[0]*Math.PI/180,la2=end[0]*Math.PI/180;
+  const y=Math.sin(dL)*Math.cos(la2);
+  const x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dL);
+  return((Math.atan2(y,x)*180/Math.PI)+360)%360;
+}
+function calcDist(la1,lo1,la2,lo2){
+  const R=6371000,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function arrowFor(type,mod=''){
+  if(type==='arrive')return'🏁';if(type==='depart')return'↑';
+  if(type==='roundabout'||type==='rotary')return'🔄';
+  if(type==='turn'){
+    if(mod.includes('sharp left'))return'↰';if(mod.includes('left'))return'←';
+    if(mod.includes('sharp right'))return'↱';if(mod.includes('right'))return'→';
+    if(mod.includes('slight left'))return'↖';if(mod.includes('slight right'))return'↗';
+  }
+  if(type==='fork')return mod.includes('left')?'↖':'↗';
+  if(type==='end of road')return mod.includes('left')?'←':'→';
+  return'↑';
+}
+function nitroFlash(){
+  const el=document.getElementById('nitro-flash');
+  el.style.animation='none';el.offsetHeight;
+  el.style.animation='nitro-burst .45s ease forwards';
+}
+let tTimer=null;
+function showToast(msg){
+  const el=document.getElementById('toast-inner');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(tTimer);tTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+function locateMe(){
+  if(!navigator.geolocation){showToast('❌ GPS NO DISPONIBLE');return;}
+  showToast('📡 BUSCANDO UBICACIÓN...');
+  navigator.geolocation.getCurrentPosition(p=>{
+    const ll=[p.coords.latitude,p.coords.longitude];
+    map.flyTo(ll,15,{duration:1.5});
+    // Draw accuracy ring
+    L.circle(ll,{radius:p.coords.accuracy,color:'#00F5FF',fillColor:'#00F5FF',
+      fillOpacity:.07,weight:1,opacity:.3}).addTo(map);
+    L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#00F5FF',fillOpacity:.9,weight:2}).addTo(map);
+    showToast('📍 UBICACIÓN ENCONTRADA · ±'+Math.round(p.coords.accuracy)+'m');
+    // Offer to set as origin if not set
+    if(!originCity){
+      setTimeout(()=>showToast('💡 TOCA UNA CIUDAD COMO ORIGEN O USA EL BUSCADOR'),3600);
+    }
+  },e=>{
+    const m={1:'❌ PERMISO DENEGADO',2:'⚠️ SIN COBERTURA GPS',3:'⏱️ GPS TIMEOUT'};
+    showToast(m[e.code]||'❌ ERROR GPS');
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+}
+function toggleReport(){document.getElementById('report-panel').classList.toggle('open');}
+function sendReport(tipo,icon){
+  toggleReport();
+  showToast('✅ '+icon+' '+tipo+' REPORTADO');
+  const c=map.getCenter();
+  L.marker([c.lat,c.lng],{
+    icon:L.divIcon({html:`<div style="font-size:22px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7))">${icon}</div>`,
+      className:'',iconSize:[24,24],iconAnchor:[12,12]})
+  }).addTo(map).bindPopup(`<b>${icon} ${tipo}</b><br><small style="color:#aaa">Reportado ahora</small>`).openPopup();
+}
+
+// ── City dots ──
+CIUDADES.forEach(c=>{
+  const dot=L.circleMarker([c.lat,c.lon],{radius:5,color:'#00F5FF',fillColor:'#00F5FF',fillOpacity:.2,weight:1.5,opacity:.5}).addTo(map);
+  dot.bindTooltip(`<span style="font-family:'Share Tech Mono';color:#00F5FF;font-size:11px;">${c.icon} ${c.name.toUpperCase()}</span>`,{direction:'top'});
+  dot.on('click',()=>{
+    if(!originCity) selectCity('origin',c);
+    else if(!destCity&&c.id!==originCity.id) selectCity('dest',c);
+  });
+});
+
+// ── INIT ──
+setTimeout(()=>{
+  const ld=document.getElementById('loading');
+  ld.style.transition='opacity .7s';ld.style.opacity='0';
+  setTimeout(()=>{ld.style.display='none';showToast('👆 TOCA CIUDAD O USA EL BUSCADOR');},700);
+},2300);
+</script>
+</body>
+</html>
