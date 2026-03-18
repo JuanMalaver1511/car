@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BOYACÁ UNDERGROUND — Street Racing Nav</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
@@ -33,7 +32,7 @@ html,body{
 
 /* ── MAP ── */
 #map{position:fixed;inset:0;z-index:0;}
-.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) saturate(0.35) brightness(0.52) contrast(1.15);}
+.leaflet-tile-pane{filter:hue-rotate(185deg) saturate(1.8) brightness(0.85) contrast(1.05);}
 .leaflet-control-attribution{display:none!important;}
 .leaflet-popup-content-wrapper{background:#0C0E1E;border:1px solid var(--border);border-radius:4px;color:var(--text);}
 .leaflet-popup-tip{background:#0C0E1E;}
@@ -75,7 +74,7 @@ html,body{
   box-shadow:0 0 18px rgba(0,245,255,.12);transition:all .2s;
   -webkit-tap-highlight-color:transparent;
 }
-#btn-toggle-search.show{display:flex; margin-top: 28px;}
+#btn-toggle-search.show{display:flex;}
 #btn-toggle-search:active{background:rgba(0,245,255,.1);}
 #btn-toggle-search .tsbdot{width:7px;height:7px;border-radius:50%;
   background:var(--cyan);box-shadow:0 0 6px var(--cyan);flex-shrink:0;}
@@ -113,6 +112,8 @@ html,body{
   -webkit-tap-highlight-color:transparent;}
 .dd-item:active{background:rgba(255,45,85,.12);}
 .dd-icon{font-size:15px;flex-shrink:0;}
+.dd-svg-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.dd-svg-icon svg{width:100%;height:100%;}
 .dd-name{font-size:14px;font-weight:700;color:var(--text);letter-spacing:.2px;line-height:1.2;}
 .dd-sub{font-size:9px;color:var(--dim);margin-top:2px;font-family:'Share Tech Mono',monospace;}
 .dropdown::-webkit-scrollbar{width:3px;}
@@ -249,8 +250,18 @@ html,body{
 .btn-stop{background:transparent;border:1px solid rgba(255,45,85,.45);border-radius:4px;
   padding:11px 12px;cursor:pointer;font-family:'Bebas Neue',sans-serif;
   font-size:14px;letter-spacing:1px;color:var(--neon);
-  -webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;flex-shrink:0;}
 .btn-stop:active{background:rgba(255,45,85,.15);}
+.btn-finish{
+  flex:1;background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,215,0,.06));
+  border:2px solid var(--yellow);border-radius:4px;padding:11px 6px;cursor:pointer;
+  font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;
+  color:var(--yellow);text-shadow:0 0 10px var(--yellow);
+  box-shadow:0 0 18px rgba(255,215,0,.18);
+  transition:all .15s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+.btn-finish:active{transform:scale(.97);background:rgba(255,215,0,.25);}
 
 /* ODOMETER */
 #odometer-wrap{display:flex;gap:2px;align-items:center;justify-content:center;
@@ -324,8 +335,41 @@ html,body{
 .rbtn .rl{font-size:8px;font-weight:700;color:var(--dim);letter-spacing:1px;font-family:'Share Tech Mono',monospace;}
 
 /* ══════════════════════════
-   RESULTS / EXPORT MODAL
+   HUD AUTO-HIDE DURING RACE
 ══════════════════════════ */
+#dashboard.hud-hidden{
+  transform:translateY(calc(100% - 3px));
+  transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+#dashboard{transition:transform .35s cubic-bezier(.4,0,.2,1);}
+/* Mini pull tab when HUD hidden */
+#hud-tab{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  z-index:401;width:60px;height:18px;
+  background:var(--border);border-radius:6px 6px 0 0;
+  display:none;align-items:center;justify-content:center;cursor:pointer;
+  transition:opacity .3s;
+}
+#hud-tab.show{display:flex;}
+#hud-tab-line{width:32px;height:3px;background:rgba(255,255,255,.3);border-radius:2px;}
+/* Top strip always visible when HUD hidden — shows speed + ETA */
+#race-mini-hud{
+  position:fixed;top:0;left:0;right:0;z-index:350;
+  display:none;align-items:center;justify-content:space-between;
+  padding:6px 14px;
+  background:linear-gradient(180deg,rgba(6,8,16,.95) 0%,transparent 100%);
+  pointer-events:none;
+}
+#race-mini-hud.show{display:flex;}
+.mini-spd{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#fff;line-height:1;
+  text-shadow:0 0 12px rgba(255,255,255,.3);}
+.mini-unit{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;margin-top:2px;}
+.mini-arrow{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--cyan);
+  text-shadow:0 0 10px var(--cyan);}
+.mini-eta{text-align:right;}
+.mini-eta-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green);
+  text-shadow:0 0 8px var(--green);line-height:1;}
+.mini-eta-lbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:1px;}
 #results-modal{
   position:fixed;inset:0;z-index:700;display:none;
   background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
@@ -429,6 +473,15 @@ html,body{
 <!-- NITRO -->
 <div id="nitro-flash"></div>
 
+<!-- MINI HUD (visible when dashboard hidden during race) -->
+<div id="race-mini-hud">
+  <div><div class="mini-spd" id="mini-spd">0</div><div class="mini-unit">KM/H</div></div>
+  <div class="mini-arrow" id="mini-arrow">↑</div>
+  <div class="mini-eta"><div class="mini-eta-val" id="mini-eta">—</div><div class="mini-eta-lbl">ETA</div></div>
+</div>
+<!-- PULL TAB -->
+<div id="hud-tab" onclick="toggleHud()"><div id="hud-tab-line"></div></div>
+
 <!-- MAP + OVERLAYS -->
 <div id="map"></div>
 <div id="scanlines"></div>
@@ -502,6 +555,8 @@ html,body{
 <button class="fab" id="btn-report" onclick="toggleReport()" title="Reportar">⚠</button>
 <button class="fab" id="btn-zi" onclick="map.zoomIn()">+</button>
 <button class="fab" id="btn-zo" onclick="map.zoomOut()">−</button>
+<button class="fab" id="btn-fs" onclick="toggleFullscreen()" title="Pantalla completa" style="bottom:398px;right:10px;font-size:18px;">⛶</button>
+<button class="fab" id="btn-north" onclick="toggleHeadingUp()" title="Orientación" style="bottom:444px;right:10px;font-size:18px;border-color:rgba(0,245,255,.3);">🧭</button>
 
 <!-- TOAST -->
 <div class="street-toast" id="toast-wrap">
@@ -652,6 +707,9 @@ html,body{
       <button class="btn-race-start" id="btn-race-start" onclick="handleRaceBtn()">
         ⚡ &nbsp;INICIAR CARRERA
       </button>
+      <button class="btn-finish" id="btn-finish" onclick="finishNow()" style="display:none;">
+        🏁 TERMINAR
+      </button>
       <button class="btn-stop" onclick="stopNav()">✕ SALIR</button>
     </div>
 
@@ -704,6 +762,8 @@ html,body{
     </div>
   </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 // ═══════════════════════════════════
 //  DATA
@@ -738,11 +798,21 @@ const CIUDADES=[
 // ═══════════════════════════════════
 //  MAP
 // ═══════════════════════════════════
-const map=L.map('map',{center:[5.65,-73.2],zoom:10,zoomControl:false,attributionControl:false});
-L.tileLayer(
-'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-{ attribution:'© OpenStreetMap © CARTO' }
-).addTo(map);
+const map=L.map('map',{
+  center:[5.65,-73.2],zoom:10,
+  zoomControl:false,attributionControl:false,
+  zoomAnimation:true,fadeAnimation:true,
+  markerZoomAnimation:true,
+  inertia:true,inertiaDeceleration:3000,
+  worldCopyJump:false
+});
+
+// Stadia Alidade Smooth Dark — deep blacks, vivid roads like Waze+NFS
+// Free, no API key needed for standard use
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{
+  maxZoom:20,
+  attribution:'© Stadia Maps © OpenMapTiles © OpenStreetMap'
+}).addTo(map);
 
 // ═══════════════════════════════════
 //  STATE
@@ -788,18 +858,20 @@ setInterval(()=>{
 // ═══════════════════════════════════
 //  ICONS
 // ═══════════════════════════════════
-function pinIcon(emoji,color){
+function pinIconSvg(svgContent, color){
   return L.divIcon({html:`
-    <div style="display:flex;flex-direction:column;align-items:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 0 8px ${color}88);">
       <div style="width:36px;height:36px;background:${color};border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);border:2px solid rgba(255,255,255,.3);
-        box-shadow:0 0 14px ${color},0 0 28px ${color}55;
-        display:flex;align-items:center;justify-content:center;">
-        <span style="transform:rotate(45deg);font-size:16px;">${emoji}</span>
+        transform:rotate(-45deg);border:2px solid rgba(255,255,255,.35);
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 0 12px ${color}99;">
+        <div style="transform:rotate(45deg);width:18px;height:18px;">${svgContent||''}</div>
       </div>
       <div style="width:2px;height:7px;background:${color};box-shadow:0 0 6px ${color};margin-top:-1px;"></div>
     </div>`,className:'',iconSize:[36,47],iconAnchor:[18,47]});
 }
+// Keep old pinIcon for backward compat
+function pinIcon(emoji,color){ return pinIconSvg('',color); }
 
 function carIcon(h=0){
   return L.divIcon({html:`
@@ -852,46 +924,111 @@ function filterCities(q){
   return CIUDADES.filter(c=>norm(c.name).includes(nq)||norm(c.tag).includes(nq));
 }
 
-// Nominatim geocode — restricted to Boyacá / Colombia
+// ── Colombian address normalizer ──
+// Converts "trv 11 #33-83" → "Transversal 11 #33-83, Tunja, Boyacá"
+function normalizeColAddress(q){
+  let s = q.trim();
+  // Expand abbreviations
+  const abbr = [
+    [/\btrv?\b\.?/i,'Transversal'],
+    [/\bcll?\b\.?/i,'Calle'],
+    [/\bcll?\b\.?/i,'Calle'],
+    [/\bcr?a?\b\.?/i,'Carrera'],
+    [/\bkr?\b\.?/i,'Carrera'],
+    [/\bav\b\.?/i,'Avenida'],
+    [/\bdiag?\b\.?/i,'Diagonal'],
+    [/\bcircu?lar?\b\.?/i,'Circular'],
+    [/\bautopista\b/i,'Autopista'],
+    [/\bmz\b\.?/i,'Manzana'],
+  ];
+  for(const [re,rep] of abbr) s=s.replace(re,rep);
+  // If query looks like a street address (has # or numbers) add city context
+  const looksLikeAddress = /\d/.test(s) || /#/.test(s);
+  if(looksLikeAddress && !/tunja|boyac|duitama|sogamoso/i.test(s)){
+    s += ', Tunja, Boyacá, Colombia';
+  } else if(!/colombia/i.test(s)){
+    s += ', Boyacá, Colombia';
+  }
+  return s;
+}
+
+// Nominatim geocode — smart Colombian address support
 async function geocode(q, spinner){
   spinner.classList.add('show');
+  const normalized = normalizeColAddress(q);
+  const queries = [normalized];
+  // Also try raw + city if different
+  if(normalized !== q+', Boyacá, Colombia') queries.push(q+', Tunja, Boyacá, Colombia');
+
   try{
-    const url=`https://nominatim.openstreetmap.org/search?`+
-      `q=${encodeURIComponent(q+', Boyacá, Colombia')}`+
-      `&format=json&limit=6&countrycodes=co`+
-      `&viewbox=-74.5,4.5,-72.0,7.0&bounded=1`+
-      `&addressdetails=1&accept-language=es`;
-    const res=await fetch(url,{headers:{'User-Agent':'BoyacaUndergroundNav/1.0'},signal:AbortSignal.timeout(6000)});
-    if(!res.ok)return [];
-    const data=await res.json();
-    return data.map(r=>({
-      name: r.display_name.split(',')[0].trim(),
-      fullName: r.display_name,
-      lat: parseFloat(r.lat),
-      lon: parseFloat(r.lon),
-      type: r.type||r.class||'place',
-      icon: iconForType(r.type||r.class||''),
-      tag: formatAddress(r)
-    }));
+    for(const qry of queries){
+      const url=`https://nominatim.openstreetmap.org/search?`+
+        `q=${encodeURIComponent(qry)}`+
+        `&format=json&limit=8&countrycodes=co`+
+        `&viewbox=-74.5,4.5,-72.0,7.0&bounded=0`+
+        `&addressdetails=1&accept-language=es`;
+      const res=await fetch(url,{headers:{'User-Agent':'BoyacaUndergroundNav/2.0'},signal:AbortSignal.timeout(7000)});
+      if(!res.ok) continue;
+      const data=await res.json();
+      if(data.length){
+        return data.map(r=>({
+          name: buildResultName(r),
+          fullName: r.display_name,
+          lat: parseFloat(r.lat),
+          lon: parseFloat(r.lon),
+          type: r.type||r.class||'place',
+          iconSvg: svgIconForType(r.type||r.class||r.category||''),
+          tag: formatAddress(r)
+        }));
+      }
+    }
+    return [];
   }catch(e){ return []; }
   finally{ spinner.classList.remove('show'); }
 }
 
-function iconForType(t){
-  if(['road','street','residential','primary','secondary','tertiary','unclassified','service','path','footway'].includes(t)) return '🛣️';
-  if(['house','building','commercial','yes'].includes(t)) return '🏢';
-  if(['hospital','clinic'].includes(t)) return '🏥';
-  if(['school','university','college'].includes(t)) return '🎓';
-  if(['park','recreation_ground','garden'].includes(t)) return '🌳';
-  if(['supermarket','marketplace','mall'].includes(t)) return '🛒';
-  if(['fuel'].includes(t)) return '⛽';
-  if(['restaurant','cafe','fast_food'].includes(t)) return '🍽️';
-  if(['hotel','hostel','motel'].includes(t)) return '🏨';
-  if(['church','cathedral','place_of_worship'].includes(t)) return '⛪';
-  if(['stadium','sports_centre'].includes(t)) return '🏟️';
-  if(['bus_stop','bus_station'].includes(t)) return '🚌';
-  if(['administrative','suburb','neighbourhood','quarter','city','town','village','hamlet'].includes(t)) return '📍';
-  return '📌';
+function buildResultName(r){
+  const a=r.address||{};
+  // For addresses with house number: show "Calle X #N, Barrio"
+  if(a.house_number){
+    const road=a.road||a.pedestrian||'';
+    return road ? `${road} ${a.house_number}` : r.display_name.split(',')[0];
+  }
+  return r.display_name.split(',')[0].trim();
+}
+
+// ── SVG icons (no emojis) ──
+function svgIconForType(t){
+  const icons={
+    road:     `<svg viewBox="0 0 20 20" fill="none"><rect x="8" y="1" width="4" height="18" rx="1" fill="#00F5FF"/><rect x="1" y="8" width="18" height="4" rx="1" fill="#00F5FF" opacity=".5"/></svg>`,
+    residential:`<svg viewBox="0 0 20 20" fill="none"><rect x="8" y="1" width="4" height="18" rx="1" fill="#00F5FF"/><rect x="1" y="8" width="18" height="4" rx="1" fill="#00F5FF" opacity=".5"/></svg>`,
+    primary:  `<svg viewBox="0 0 20 20" fill="none"><rect x="8" y="1" width="4" height="18" rx="1" fill="#FFD700"/><rect x="1" y="8" width="18" height="4" rx="1" fill="#FFD700" opacity=".5"/></svg>`,
+    secondary:`<svg viewBox="0 0 20 20" fill="none"><rect x="8" y="1" width="4" height="18" rx="1" fill="#FF6B00"/><rect x="1" y="8" width="18" height="4" rx="1" fill="#FF6B00" opacity=".5"/></svg>`,
+    house:    `<svg viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,9 18,18 2,18 2,9" fill="#39FF14" opacity=".9"/><rect x="7" y="12" width="6" height="6" fill="#060810"/></svg>`,
+    building: `<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="3" width="12" height="15" rx="1" fill="#39FF14" opacity=".8"/><rect x="7" y="6" width="2" height="2" fill="#060810"/><rect x="11" y="6" width="2" height="2" fill="#060810"/><rect x="7" y="10" width="2" height="2" fill="#060810"/><rect x="11" y="10" width="2" height="2" fill="#060810"/></svg>`,
+    hospital: `<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" fill="#FF2D55"/><rect x="9" y="6" width="2" height="8" fill="#fff"/><rect x="6" y="9" width="8" height="2" fill="#fff"/></svg>`,
+    school:   `<svg viewBox="0 0 20 20" fill="none"><polygon points="10,1 19,7 19,18 1,18 1,7" fill="#FFD700" opacity=".9"/><rect x="8" y="12" width="4" height="6" fill="#060810"/></svg>`,
+    university:`<svg viewBox="0 0 20 20" fill="none"><polygon points="10,1 19,7 19,18 1,18 1,7" fill="#FFD700" opacity=".9"/><rect x="8" y="12" width="4" height="6" fill="#060810"/></svg>`,
+    park:     `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="6" fill="#39FF14" opacity=".8"/><rect x="9" y="12" width="2" height="6" fill="#1a8c54"/></svg>`,
+    fuel:     `<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="6" width="10" height="12" rx="1" fill="#FF6B00"/><rect x="14" y="4" width="3" height="6" rx="1" fill="#FF6B00" opacity=".6"/><rect x="6" y="9" width="6" height="3" fill="#060810"/></svg>`,
+    restaurant:`<svg viewBox="0 0 20 20" fill="none"><rect x="8" y="1" width="2" height="9" rx="1" fill="#FF2D55"/><rect x="12" y="1" width="2" height="9" rx="1" fill="#FF2D55"/><path d="M7 5 Q10 8 13 5" stroke="#FF2D55" stroke-width="1.5" fill="none"/><rect x="9" y="10" width="2" height="8" rx="1" fill="#FF2D55" opacity=".7"/></svg>`,
+    hotel:    `<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="5" width="14" height="13" rx="1" fill="#BF00FF" opacity=".8"/><text x="6" y="14" font-size="7" fill="#fff" font-weight="bold">H</text></svg>`,
+    place_of_worship:`<svg viewBox="0 0 20 20" fill="none"><polygon points="10,2 16,8 16,18 4,18 4,8" fill="#FFD700" opacity=".8"/><rect x="9" y="1" width="2" height="5" fill="#FFD700"/></svg>`,
+    bus_stop: `<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="10" rx="2" fill="#00F5FF" opacity=".8"/><rect x="6" y="4" width="8" height="4" rx="1" fill="#00F5FF" opacity=".5"/><circle cx="7" cy="17" r="2" fill="#00F5FF"/><circle cx="13" cy="17" r="2" fill="#00F5FF"/></svg>`,
+    city:     `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="8" width="5" height="10" fill="#FF2D55"/><rect x="8" y="4" width="5" height="14" fill="#FF2D55" opacity=".8"/><rect x="14" y="7" width="4" height="11" fill="#FF2D55" opacity=".6"/></svg>`,
+    default:  `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="8" r="5" fill="#00F5FF" opacity=".8"/><path d="M10 13 L10 18" stroke="#00F5FF" stroke-width="2"/></svg>`,
+  };
+  const map2={
+    'tertiary':'road','unclassified':'road','service':'road','path':'road','footway':'road',
+    'cycleway':'road','track':'road','commercial':'building','yes':'building',
+    'supermarket':'restaurant','marketplace':'restaurant','mall':'building',
+    'fast_food':'restaurant','cafe':'restaurant','clinic':'hospital',
+    'stadium':'building','sports_centre':'building',
+    'suburb':'city','neighbourhood':'city','quarter':'city',
+    'town':'city','village':'city','hamlet':'city','administrative':'city',
+  };
+  const k = map2[t]||t;
+  return icons[k]||icons.default;
 }
 
 function formatAddress(r){
@@ -903,34 +1040,51 @@ function formatAddress(r){
   return parts.slice(0,2).join(' · ').toUpperCase()||'BOYACÁ';
 }
 
+// ── SVG icons for cities ──
+const CITY_ICONS = {
+  capital:  `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="8" width="5" height="10" fill="#FF2D55"/><rect x="8" y="4" width="5" height="14" fill="#FF2D55"/><rect x="14" y="7" width="4" height="11" fill="#FF2D55" opacity=".7"/></svg>`,
+  ciudad:   `<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="9" width="4" height="9" fill="#00F5FF" opacity=".7"/><rect x="8" y="5" width="4" height="13" fill="#00F5FF"/><rect x="13" y="8" width="4" height="10" fill="#00F5FF" opacity=".7"/></svg>`,
+  turismo:  `<svg viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,9 18,18 2,18 2,9" fill="#FFD700" opacity=".9"/><rect x="8" y="12" width="4" height="6" fill="#060810"/></svg>`,
+  pueblo:   `<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="9" r="6" fill="#39FF14" opacity=".7"/><rect x="9" y="14" width="2" height="5" fill="#39FF14" opacity=".7"/></svg>`,
+  lago:     `<svg viewBox="0 0 20 20" fill="none"><ellipse cx="10" cy="12" rx="8" ry="5" fill="#00F5FF" opacity=".7"/><path d="M4 10 Q7 7 10 10 Q13 7 16 10" stroke="#00F5FF" stroke-width="1.5" fill="none"/></svg>`,
+  artesania:`<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#FF6B00" stroke-width="2" fill="none"/><circle cx="10" cy="10" r="3" fill="#FF6B00" opacity=".8"/></svg>`,
+};
+function cityIconSvg(tag){
+  const t=tag.toLowerCase();
+  if(t.includes('capital')) return CITY_ICONS.capital;
+  if(t.includes('ciudad')) return CITY_ICONS.ciudad;
+  if(t.includes('turismo')) return CITY_ICONS.turismo;
+  if(t.includes('lago')) return CITY_ICONS.lago;
+  if(t.includes('artesanía')||t.includes('artesania')) return CITY_ICONS.artesania;
+  return CITY_ICONS.pueblo;
+}
+
 // Render dropdown with cities + geocoded results
 function renderDropdown(ddEl, type, cityResults, geoResults, q){
   ddEl.innerHTML='';
   const hasQ = q.trim().length > 0;
 
-  // ── CIUDADES section ──
   if(cityResults.length){
     const sec=document.createElement('div'); sec.className='dd-section';
     sec.textContent='CIUDADES Y PUEBLOS'; ddEl.appendChild(sec);
     cityResults.slice(0,6).forEach(c=>{
       const item=document.createElement('div'); item.className='dd-item';
-      item.innerHTML=`<span class="dd-icon">${c.icon}</span>
+      item.innerHTML=`<div class="dd-svg-icon">${cityIconSvg(c.tag)}</div>
         <div><div class="dd-name">${c.name}</div><div class="dd-sub">${c.tag}</div></div>`;
-      item.onclick=()=>{ selectPlace(type,{lat:c.lat,lon:c.lon,name:c.name,label:c.name,icon:c.icon}); ddEl.classList.remove('open'); };
+      item.onclick=()=>{ selectPlace(type,{lat:c.lat,lon:c.lon,name:c.name,iconSvg:cityIconSvg(c.tag)}); ddEl.classList.remove('open'); };
       ddEl.appendChild(item);
     });
   }
 
-  // ── DIRECCIONES section ──
   if(geoResults.length){
     const sec=document.createElement('div'); sec.className='dd-section';
     sec.textContent='DIRECCIONES Y LUGARES'; ddEl.appendChild(sec);
     geoResults.forEach(r=>{
       const item=document.createElement('div'); item.className='dd-item addr';
-      const shortName=r.name.length>32?r.name.substring(0,32)+'…':r.name;
-      item.innerHTML=`<span class="dd-icon">${r.icon}</span>
+      const shortName=r.name.length>34?r.name.substring(0,34)+'…':r.name;
+      item.innerHTML=`<div class="dd-svg-icon">${r.iconSvg}</div>
         <div><div class="dd-name">${shortName}</div><div class="dd-sub">${r.tag}</div></div>`;
-      item.onclick=()=>{ selectPlace(type,{lat:r.lat,lon:r.lon,name:r.name,label:r.name,icon:r.icon}); ddEl.classList.remove('open'); };
+      item.onclick=()=>{ selectPlace(type,{lat:r.lat,lon:r.lon,name:r.name,iconSvg:r.iconSvg}); ddEl.classList.remove('open'); };
       ddEl.appendChild(item);
     });
   }
@@ -940,21 +1094,20 @@ function renderDropdown(ddEl, type, cityResults, geoResults, q){
     empty.textContent='// SIN RESULTADOS'; ddEl.appendChild(empty);
   }
   if(!cityResults.length&&!geoResults.length&&!hasQ){
-    // Show all cities when empty
     const sec=document.createElement('div'); sec.className='dd-section';
     sec.textContent='TODAS LAS CIUDADES'; ddEl.appendChild(sec);
     CIUDADES.forEach(c=>{
       const item=document.createElement('div'); item.className='dd-item';
-      item.innerHTML=`<span class="dd-icon">${c.icon}</span>
+      item.innerHTML=`<div class="dd-svg-icon">${cityIconSvg(c.tag)}</div>
         <div><div class="dd-name">${c.name}</div><div class="dd-sub">${c.tag}</div></div>`;
-      item.onclick=()=>{ selectPlace(type,{lat:c.lat,lon:c.lon,name:c.name,label:c.name,icon:c.icon}); ddEl.classList.remove('open'); };
+      item.onclick=()=>{ selectPlace(type,{lat:c.lat,lon:c.lon,name:c.name,iconSvg:cityIconSvg(c.tag)}); ddEl.classList.remove('open'); };
       ddEl.appendChild(item);
     });
   }
   ddEl.classList.add('open');
 }
 
-// Unified select handler (works for both city and geocoded place)
+// Unified select handler
 function selectPlace(type, place){
   const color = type==='origin' ? '#39FF14' : '#FF2D55';
   const label = type==='origin' ? 'PUNTO DE PARTIDA' : 'DESTINO';
@@ -963,24 +1116,24 @@ function selectPlace(type, place){
     document.getElementById('origin-input').value=place.name;
     document.getElementById('origin-clear').style.display='block';
     if(originMarker)map.removeLayer(originMarker);
-    originMarker=L.marker([place.lat,place.lon],{icon:pinIcon(place.icon||'📍',color)}).addTo(map)
-      .bindPopup(`<b>${place.icon||'📍'} ${place.name}</b><br><span style="color:#888;font-size:11px">${label}</span>`);
-    map.flyTo([place.lat,place.lon],15,{duration:1});
-    showToast('📍 ORIGEN: '+place.name.toUpperCase().substring(0,30));
+    originMarker=L.marker([place.lat,place.lon],{icon:pinIconSvg(place.iconSvg,color)}).addTo(map)
+      .bindPopup(`<b>${place.name}</b><br><span style="color:#888;font-size:11px">${label}</span>`);
+    map.flyTo([place.lat,place.lon],15,{duration:0.8});
+    showToast('ORIGEN: '+place.name.toUpperCase().substring(0,30));
   } else {
     destCity={lat:place.lat,lon:place.lon,name:place.name,id:'custom-dest'};
     document.getElementById('dest-input').value=place.name;
     document.getElementById('dest-clear').style.display='block';
     if(destMarker)map.removeLayer(destMarker);
-    destMarker=L.marker([place.lat,place.lon],{icon:pinIcon(place.icon||'📌',color)}).addTo(map)
-      .bindPopup(`<b>${place.icon||'📌'} ${place.name}</b><br><span style="color:#888;font-size:11px">${label}</span>`);
-    map.flyTo([place.lat,place.lon],15,{duration:1});
-    showToast('🏁 DESTINO: '+place.name.toUpperCase().substring(0,30));
+    destMarker=L.marker([place.lat,place.lon],{icon:pinIconSvg(place.iconSvg,color)}).addTo(map)
+      .bindPopup(`<b>${place.name}</b><br><span style="color:#888;font-size:11px">${label}</span>`);
+    map.flyTo([place.lat,place.lon],15,{duration:0.8});
+    showToast('DESTINO: '+place.name.toUpperCase().substring(0,30));
   }
   if(originCity&&destCity){
     setTimeout(()=>{
-      map.fitBounds([[originCity.lat,originCity.lon],[destCity.lat,destCity.lon]],{padding:[90,90]});
-    },800);
+      map.fitBounds([[originCity.lat,originCity.lon],[destCity.lat,destCity.lon]],{padding:[80,80]});
+    },900);
     updateIdleStats();
     fetchRoute();
   }
@@ -1234,6 +1387,9 @@ function onGpsUpdate(pos){
   }
   lastGpsHeading=hdg;
 
+  // Update map rotation (heading-up)
+  updateMapBearing(hdg);
+
   // Speed — use GPS speed if available, smooth it
   let spd=simSpeed;
   if(rawSpd!=null&&rawSpd>=0){
@@ -1347,39 +1503,74 @@ function startGps(){
   },8000);
 }
 
-/* ── Stop GPS watch ── */
 function stopGps(){
   if(gpsWatchId!=null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
   if(gpsAccMarker){map.removeLayer(gpsAccMarker);gpsAccMarker=null;}
   gpsSignalOk=false;
+}
+function stopTimer(){
+  if(navTimer!=null){
+    try{cancelAnimationFrame(navTimer);}catch(e){}
+    try{clearInterval(navTimer);}catch(e){}
+    navTimer=null;
+  }
 }
 
 /* ── Simulation fallback (when GPS unavailable) ── */
 function startSimMode(){
   gpsMode=false;
   updateGpsSignalUI(false,0);
-  if(navTimer)return; // already running
+  if(navTimer)return;
+
   const total=routeCoords.length;
-  const interval=total>100?85:130;
-  let alertFired={};
-  navTimer=setInterval(()=>{
-    if(!navActive){clearInterval(navTimer);navTimer=null;return;}
-    if(ptIdx>=total-1){clearInterval(navTimer);navTimer=null;arrive();return;}
+  // Pre-generate icon cache for 36 headings (every 10°)
+  const iconCache={};
+  function getCachedIcon(hdg){
+    const slot=Math.round(hdg/10)*10%360;
+    if(!iconCache[slot]) iconCache[slot]=carIcon(slot);
+    return iconCache[slot];
+  }
+
+  let lastPt=-1, alertFired={};
+  // Use requestAnimationFrame + timestamp for smooth movement
+  let lastTick=0;
+  const MS_PER_PT = total>200 ? 60 : total>100 ? 80 : 110;
+
+  function tick(ts){
+    if(!navActive){navTimer=null;return;}
+    navTimer=requestAnimationFrame(tick);
+    if(ts-lastTick < MS_PER_PT) return;
+    lastTick=ts;
+
+    if(ptIdx>=total-1){
+      cancelAnimationFrame(navTimer);navTimer=null;arrive();return;
+    }
     ptIdx++;
     const pct=ptIdx/(total-1);
     const pos=routeCoords[ptIdx];
     const prev=routeCoords[Math.max(0,ptIdx-1)];
     const hdg=bearing(prev,pos);
-    carMarker.setLatLng(pos);carMarker.setIcon(carIcon(hdg));
-    map.panTo(pos,{animate:true,duration:.22,easeLinearity:1});
+
+    // Move marker — only setLatLng every frame, setIcon every 5 pts
+    carMarker.setLatLng(pos);
+    if(ptIdx%5===0) carMarker.setIcon(getCachedIcon(hdg));
+
+    // Pan map smoothly
+    map.panTo(pos,{animate:true,duration:0.15,easeLinearity:1,noMoveStart:true});
+    updateMapBearing(hdg);
+
     const tgt=pct<.04?pct*2200:pct>.93?(1-pct)*2200:75+Math.sin(ptIdx*.45)*28+Math.random()*8;
     simSpeed+=(tgt-simSpeed)*.07;simSpeed=Math.max(0,Math.min(simSpeed,210));
     closestPtIdx=ptIdx;
     if(ptIdx>0) kmDone+=calcDist(prev[0],prev[1],pos[0],pos[1])/1000;
     updateTelemetry(pct,ptIdx);
-    const alertPts={12:'👮 TOMBOS 2 KM ADELANTE',32:'🕳️ HUECO — CUIDADO PILOTO',54:'🐄 GANADO EN LA VÍA',78:'🌫️ ZONA DE NIEBLA'};
-    for(const k in alertPts){if(ptIdx===Math.floor(total*(+k/100))&&!alertFired[k]){alertFired[k]=1;showToast(alertPts[k]);}}
-  },interval);
+
+    const alertPts={12:'TOMBOS 2 KM ADELANTE',32:'HUECO — CUIDADO PILOTO',54:'GANADO EN LA VIA',78:'ZONA DE NIEBLA'};
+    for(const k in alertPts){
+      if(ptIdx===Math.floor(total*(+k/100))&&!alertFired[k]){alertFired[k]=1;showToast(alertPts[k]);}
+    }
+  }
+  navTimer=requestAnimationFrame(tick);
 }
 
 /* ── Shared telemetry update ── */
@@ -1417,6 +1608,20 @@ function startNav(){
   document.getElementById('progress-bar').style.display='block';
   document.getElementById('btn-race-start').textContent='⚡  EN CARRERA...';
   document.getElementById('btn-race-start').disabled=true;
+  document.getElementById('btn-race-start').style.display='none';
+  document.getElementById('btn-finish').style.display='flex';
+  document.getElementById('btn-finish').textContent='🏁 TERMINAR';
+  document.getElementById('btn-finish').disabled=false;
+
+  // Auto fullscreen on tablet
+  const fsEl=document.documentElement;
+  const fsReq=fsEl.requestFullscreen||fsEl.webkitRequestFullscreen||fsEl.mozRequestFullScreen||fsEl.msRequestFullscreen;
+  if(fsReq&&!document.fullscreenElement&&!document.webkitFullscreenElement){
+    try{ fsReq.call(fsEl); }catch(e){}
+  }
+
+  // Activate heading-up if not already
+  if(!headingUpMode) toggleHeadingUp();
 
   if(carMarker)map.removeLayer(carMarker);
   carMarker=L.marker(routeCoords[0],{icon:carIcon(0),zIndexOffset:2000}).addTo(map);
@@ -1426,7 +1631,7 @@ function startNav(){
   L.polyline(routeCoords,{color:'#39FF14',weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
   L.polyline(routeCoords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
 
-  map.setView(routeCoords[0],15,{animate:true,duration:1.2});
+  map.setView(routeCoords[0],16,{animate:true,duration:1.2});
   nitroFlash();
   // Hide search toggle during race
   document.getElementById('btn-toggle-search').classList.remove('show');
@@ -1441,7 +1646,7 @@ function startNav(){
 }
 
 function arrive(){
-  navActive=false;stopGps();clearInterval(navTimer);navTimer=null;
+  navActive=false;stopGps();stopTimer();
   tele.endTime=Date.now();tele.distKm=kmDone;
   document.getElementById('arrow-box').textContent='🏁';
   document.getElementById('nav-street').textContent='¡LLEGASTE A '+(destCity?.name||'').toUpperCase()+'!';
@@ -1451,7 +1656,10 @@ function arrive(){
   document.getElementById('tele-pct').textContent='100%';
   document.getElementById('progress-bar').style.width='100%';
   updateSpeedUI(0);document.getElementById('gear-val').textContent='P';
+  document.getElementById('btn-race-start').style.display='flex';
+  document.getElementById('btn-finish').style.display='none';
   document.getElementById('btn-race-start').textContent='🏁  LLEGASTE';
+  if(headingUpMode){rotateTiles(0);lastBearing=0;}
   nitroFlash();setTimeout(nitroFlash,400);setTimeout(nitroFlash,800);
   showToast('🏁 ¡CARRERA COMPLETA! · '+(destCity?.name||'').toUpperCase());
   if(destMarker)destMarker.openPopup();
@@ -1542,16 +1750,23 @@ async function shareNative(){
 }
 
 function stopNav(){
-  stopGps();clearInterval(navTimer);navTimer=null;navActive=false;
+  stopGps();stopTimer();navActive=false;
   document.getElementById('progress-bar').style.display='none';
   if(carMarker){map.removeLayer(carMarker);carMarker=null;}
   updateSpeedUI(0);document.getElementById('gear-val').textContent='N';
   document.getElementById('btn-race-start').textContent='⚡   INICIAR CARRERA';
   document.getElementById('btn-race-start').disabled=false;
+  document.getElementById('btn-race-start').style.display='flex';
+  document.getElementById('btn-finish').style.display='none';
+  // Reset heading-up
+  if(headingUpMode){toggleHeadingUp();}
+  rotateTiles(0);lastBearing=0;
+  // Exit fullscreen
+  const ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+  if(ex&&(document.fullscreenElement||document.webkitFullscreenElement)) ex.call(document).catch(()=>{});
   switchToDash('idle');clearOldRoute();
   if(routeCoords.length)drawRoute(routeCoords,'#00F5FF');
   updateGpsSignalUI(false,0);
-  // Restore toggle button and show search
   document.getElementById('btn-toggle-search').classList.add('show');
   if(!searchVisible) toggleSearch();
 }
@@ -1621,59 +1836,24 @@ function showToast(msg){
   clearTimeout(tTimer);tTimer=setTimeout(()=>el.classList.remove('show'),3500);
 }
 function locateMe(){
-  if(!navigator.geolocation){
-    showToast('❌ GPS NO DISPONIBLE');
-    return;
-  }
-
+  if(!navigator.geolocation){showToast('❌ GPS NO DISPONIBLE');return;}
   showToast('📡 BUSCANDO UBICACIÓN...');
-
   navigator.geolocation.getCurrentPosition(p=>{
-    
-    const ll = [p.coords.latitude, p.coords.longitude];
-
+    const ll=[p.coords.latitude,p.coords.longitude];
     map.flyTo(ll,15,{duration:1.5});
-
-    // Dibujar precisión
-    L.circle(ll,{
-      radius:p.coords.accuracy,
-      color:'#00F5FF',
-      fillColor:'#00F5FF',
-      fillOpacity:.07,
-      weight:1,
-      opacity:.3
-    }).addTo(map);
-
-    L.circleMarker(ll,{
-      radius:8,
-      color:'#fff',
-      fillColor:'#00F5FF',
-      fillOpacity:.9,
-      weight:2
-    }).addTo(map);
-
+    // Draw accuracy ring
+    L.circle(ll,{radius:p.coords.accuracy,color:'#00F5FF',fillColor:'#00F5FF',
+      fillOpacity:.07,weight:1,opacity:.3}).addTo(map);
+    L.circleMarker(ll,{radius:8,color:'#fff',fillColor:'#00F5FF',fillOpacity:.9,weight:2}).addTo(map);
     showToast('📍 UBICACIÓN ENCONTRADA · ±'+Math.round(p.coords.accuracy)+'m');
-
-    // 🔹 GUARDAR COMO ORIGEN
-    originCity = {
-      name: "Mi ubicación",
-      coords: ll
-    };
-
-    showToast('🚀 ORIGEN ESTABLECIDO: MI UBICACIÓN');
-
+    // Offer to set as origin if not set
+    if(!originCity){
+      setTimeout(()=>showToast('💡 TOCA UNA CIUDAD COMO ORIGEN O USA EL BUSCADOR'),3600);
+    }
   },e=>{
-    const m={
-      1:'❌ PERMISO DENEGADO',
-      2:'⚠️ SIN COBERTURA GPS',
-      3:'⏱️ GPS TIMEOUT'
-    };
+    const m={1:'❌ PERMISO DENEGADO',2:'⚠️ SIN COBERTURA GPS',3:'⏱️ GPS TIMEOUT'};
     showToast(m[e.code]||'❌ ERROR GPS');
-  },{
-    enableHighAccuracy:true,
-    timeout:10000,
-    maximumAge:0
-  });
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
 }
 function toggleReport(){document.getElementById('report-panel').classList.toggle('open');}
 function sendReport(tipo,icon){
@@ -1686,7 +1866,119 @@ function sendReport(tipo,icon){
   }).addTo(map).bindPopup(`<b>${icon} ${tipo}</b><br><small style="color:#aaa">Reportado ahora</small>`).openPopup();
 }
 
-// ── Search panel toggle ──
+// ═══════════════════════════════════
+//  FULLSCREEN
+// ═══════════════════════════════════
+function toggleFullscreen(){
+  const el=document.documentElement;
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    const req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+    if(req) req.call(el);
+    document.getElementById('btn-fs').textContent='✕⛶';
+    showToast('📺 PANTALLA COMPLETA ACTIVADA');
+  } else {
+    const ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+    if(ex) ex.call(document);
+    document.getElementById('btn-fs').textContent='⛶';
+  }
+}
+document.addEventListener('fullscreenchange',()=>{
+  const btn=document.getElementById('btn-fs');
+  if(btn) btn.textContent=document.fullscreenElement?'✕⛶':'⛶';
+});
+document.addEventListener('webkitfullscreenchange',()=>{
+  const btn=document.getElementById('btn-fs');
+  if(btn) btn.textContent=document.webkitFullscreenElement?'✕⛶':'⛶';
+});
+
+// ═══════════════════════════════════
+//  HEADING-UP MAP (North-up vs Heading-up)
+// ═══════════════════════════════════
+let headingUpMode=false;
+let currentMapBearing=0; // degrees, map rotation
+
+function toggleHeadingUp(){
+  headingUpMode=!headingUpMode;
+  const btn=document.getElementById('btn-north');
+  if(headingUpMode){
+    btn.style.color='var(--cyan)';
+    btn.style.borderColor='var(--cyan)';
+    btn.style.boxShadow='0 0 14px rgba(0,245,255,.35)';
+    btn.textContent='🔒';
+    showToast('🧭 MAPA ORIENTADO AL FRENTE');
+  } else {
+    btn.style.color='var(--text)';
+    btn.style.borderColor='rgba(0,245,255,.3)';
+    btn.style.boxShadow='';
+    btn.textContent='🧭';
+    // Reset map to north-up
+    rotateTiles(0);
+    currentMapBearing=0;
+    showToast('⬆️ MAPA ORIENTADO AL NORTE');
+  }
+}
+
+// Rotate the map tile layer via CSS transform (Leaflet doesn't have native bearing)
+function rotateTiles(bearing){
+  // Rotate the entire map container around its center
+  const container=document.getElementById('map');
+  const angle=(-bearing+360)%360;
+  // We use CSS rotate on the tile pane and counter-rotate markers
+  const tp=document.querySelector('.leaflet-tile-pane');
+  const op=document.querySelector('.leaflet-overlay-pane');
+  const mp=document.querySelector('.leaflet-marker-pane');
+  const pp=document.querySelector('.leaflet-popup-pane');
+  const W=container.offsetWidth, H=container.offsetHeight;
+  // Expand tile pane so rotation doesn't show edges
+  const scale=1.5;
+  const cx=W/2, cy=H/2;
+  const tform=`translate(-${(W*(scale-1)/2)}px,-${(H*(scale-1)/2)}px) scale(${scale}) rotate(${angle}deg)`;
+  if(tp){tp.style.transformOrigin='center center';tp.style.transform=tform;}
+  // Counter-rotate overlays and markers so they stay upright
+  if(op){op.style.transformOrigin='center center';op.style.transform=`rotate(${-angle}deg)`;}
+  if(mp){mp.style.transformOrigin='center center';mp.style.transform=`rotate(${-angle}deg)`;}
+  if(pp){pp.style.transformOrigin='center center';pp.style.transform=`rotate(${-angle}deg)`;}
+}
+
+// Smooth bearing interpolation
+function lerp(a,b,t){
+  let d=((b-a+540)%360)-180;
+  return a+d*t;
+}
+
+let lastBearing=0;
+function updateMapBearing(targetBearing){
+  if(!headingUpMode) return;
+  // Smooth rotation
+  lastBearing=lerp(lastBearing,targetBearing,0.12);
+  rotateTiles(lastBearing);
+}
+
+// ═══════════════════════════════════
+//  FINISH NOW (manual end)
+// ═══════════════════════════════════
+function finishNow(){
+  // Confirm with brief visual feedback
+  const btn=document.getElementById('btn-finish');
+  btn.textContent='⏳ FINALIZANDO...';
+  btn.disabled=true;
+  setTimeout(()=>{
+    tele.endTime=Date.now();
+    tele.distKm=kmDone;
+    stopGps();stopTimer();navActive=false;
+    // Reset heading
+    if(headingUpMode){rotateTiles(0);lastBearing=0;}
+    document.getElementById('progress-bar').style.display='none';
+    document.getElementById('btn-race-start').style.display='flex';
+    document.getElementById('btn-finish').style.display='none';
+    document.getElementById('btn-race-start').textContent='⚡   INICIAR CARRERA';
+    document.getElementById('btn-race-start').disabled=false;
+    btn.disabled=false;
+    document.getElementById('gear-val').textContent='P';
+    updateSpeedUI(0);
+    showResults();
+  }, 400);
+}
 let searchVisible=true;
 function toggleSearch(){
   searchVisible=!searchVisible;
@@ -1724,8 +2016,9 @@ CIUDADES.forEach(c=>{
   const dot=L.circleMarker([c.lat,c.lon],{radius:5,color:'#00F5FF',fillColor:'#00F5FF',fillOpacity:.2,weight:1.5,opacity:.5}).addTo(map);
   dot.bindTooltip(`<span style="font-family:'Share Tech Mono';color:#00F5FF;font-size:11px;">${c.icon} ${c.name.toUpperCase()}</span>`,{direction:'top'});
   dot.on('click',()=>{
-    if(!originCity) selectPlace('origin',{lat:c.lat,lon:c.lon,name:c.name,icon:c.icon});
-    else if(!destCity&&c.id!==originCity.id) selectPlace('dest',{lat:c.lat,lon:c.lon,name:c.name,icon:c.icon});
+    const svg=cityIconSvg(c.tag);
+    if(!originCity) selectPlace('origin',{lat:c.lat,lon:c.lon,name:c.name,iconSvg:svg});
+    else if(!destCity&&c.id!==originCity.id) selectPlace('dest',{lat:c.lat,lon:c.lon,name:c.name,iconSvg:svg});
   });
 });
 
