@@ -8,14 +8,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
 :root{
-  --neon:#FF2D55; --neon2:#FF6B00; --cyan:#00F5FF;
-  --green:#39FF14; --yellow:#FFE600; --purple:#BF00FF;
-  --bg:#060810; --panel:rgba(6,8,16,0.97);
-  --card:rgba(10,12,22,0.98); --border:rgba(255,45,85,0.28);
-  --text:#F0F2FF; --dim:#4a5068;
+  --neon:#E8001A; --neon2:#FF6B00; --cyan:#0066FF;
+  --green:#00A84F; --yellow:#F5A800; --purple:#8B00FF;
+  --bg:#0A0C18; --panel:rgba(8,10,20,0.95);
+  --card:rgba(8,10,20,0.97); --border:rgba(220,0,30,0.35);
+  --text:#F0F2FF; --dim:#6a7490;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;font-family:'Barlow Condensed',sans-serif;overflow:hidden;background:var(--bg);}
+
+/* ── MAP ── */
+#map{position:fixed;inset:0;z-index:0;}
+/* CartoDB Voyager — mapa claro como Waze, sin filtros */
+.leaflet-tile-pane{ filter:none; }
+.leaflet-control-attribution{display:none!important;}
+.leaflet-tooltip-custom{
+  background:rgba(8,10,20,0.92)!important;
+  border:1px solid rgba(26,111,255,0.5)!important;
+  border-radius:4px!important;
+  box-shadow:0 2px 8px rgba(0,0,0,0.25)!important;
+  padding:3px 8px!important;
+}
+.leaflet-tooltip-custom::before{border-top-color:rgba(26,111,255,0.5)!important;}
+.leaflet-popup-content-wrapper{
+  background:rgba(8,10,20,0.95);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.leaflet-popup-tip{background:rgba(8,10,20,0.95);}
+.leaflet-popup-content{font-family:'Barlow Condensed',sans-serif;font-size:14px;}
 
 /* ══════════════════════════════
    MOBILE RESPONSIVE — safe areas
@@ -26,17 +46,8 @@ html,body{
   overflow:hidden;background:var(--bg);
   -webkit-text-size-adjust:100%;
 }
-/* Fix for iOS notch / safe area */
 #dashboard{padding-bottom:env(safe-area-inset-bottom,0px);}
 #topbar{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
-
-/* ── MAP ── */
-#map{position:fixed;inset:0;z-index:0;}
-.leaflet-tile-pane{filter:hue-rotate(185deg) saturate(1.8) brightness(0.85) contrast(1.05);}
-.leaflet-control-attribution{display:none!important;}
-.leaflet-popup-content-wrapper{background:#0C0E1E;border:1px solid var(--border);border-radius:4px;color:var(--text);}
-.leaflet-popup-tip{background:#0C0E1E;}
-.leaflet-popup-content{font-family:'Barlow Condensed',sans-serif;font-size:14px;}
 
 /* ── OVERLAYS ── */
 #scanlines{position:fixed;inset:0;z-index:5;pointer-events:none;
@@ -47,14 +58,16 @@ html,body{
 /* ── BRAND TOP ── */
 #brand{position:fixed;top:0;left:0;right:0;z-index:300;
   display:flex;align-items:center;justify-content:space-between;
-  padding:8px 12px 0;pointer-events:none;
-  padding-top:max(8px,env(safe-area-inset-top));}
+  padding:8px 12px 6px;pointer-events:none;
+  padding-top:max(8px,env(safe-area-inset-top));
+  background:linear-gradient(180deg,rgba(8,10,20,0.92) 0%,rgba(8,10,20,0.0) 100%);
+}
 .brand-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;
-  color:var(--neon);text-shadow:0 0 10px var(--neon),0 0 30px rgba(255,45,85,.4);line-height:1;}
-.brand-sub{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--cyan);
-  text-shadow:0 0 8px var(--cyan);margin-top:1px;}
-.brand-right{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--green);
-  text-shadow:0 0 8px var(--green);text-align:right;}
+  color:var(--neon);text-shadow:0 1px 4px rgba(0,0,0,0.8);line-height:1;}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;
+  color:rgba(200,210,255,0.8);margin-top:1px;}
+.brand-right{font-family:'Share Tech Mono',monospace;font-size:9px;
+  color:rgba(200,220,255,0.9);text-align:right;}
 .blink{animation:blink .8s step-end infinite;}
 @keyframes blink{50%{opacity:0}}
 
@@ -809,10 +822,20 @@ const map=L.map('map',{
 
 // Stadia Alidade Smooth Dark — deep blacks, vivid roads like Waze+NFS
 // Free, no API key needed for standard use
-L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{
-  maxZoom:20,
-  attribution:'© Stadia Maps © OpenMapTiles © OpenStreetMap'
-}).addTo(map);
+// ── Tile layers: 100% free, no API key needed ──
+// Primary: CartoDB Voyager (colores vivos como Waze)
+const tileVoyager = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  {maxZoom:20, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO'}
+);
+// Fallback: OpenStreetMap standard
+const tileOSM = L.tileLayer(
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom:19, subdomains:'abc', attribution:'© OpenStreetMap contributors'}
+);
+tileVoyager.addTo(map);
+// If Voyager fails load OSM as fallback
+tileVoyager.on('tileerror', ()=>{ if(!map.hasLayer(tileOSM)){ map.removeLayer(tileVoyager); tileOSM.addTo(map); } });
 
 // ═══════════════════════════════════
 //  STATE
@@ -1109,7 +1132,7 @@ function renderDropdown(ddEl, type, cityResults, geoResults, q){
 
 // Unified select handler
 function selectPlace(type, place){
-  const color = type==='origin' ? '#39FF14' : '#FF2D55';
+  const color = type==='origin' ? '#00A84F' : '#E8001A';
   const label = type==='origin' ? 'PUNTO DE PARTIDA' : 'DESTINO';
   if(type==='origin'){
     originCity={lat:place.lat,lon:place.lon,name:place.name,id:'custom-origin'};
@@ -1237,7 +1260,7 @@ async function fetchRoute(){
       const mins=Math.round(route.duration/60);
       const timeStr=mins<60?mins+' MIN':Math.floor(mins/60)+'H '+(mins%60)+'M';
 
-      drawRoute(routeCoords,'#00F5FF');
+      drawRoute(routeCoords,'#1A6FFF');
       map.fitBounds(L.polyline(routeCoords).getBounds(),{padding:[100,100]});
       updateInfoUI(km,timeStr);
       showToast('✅ RUTA REAL · '+km+' KM · '+timeStr);
@@ -1261,10 +1284,14 @@ async function fetchRoute(){
 }
 
 function drawRoute(coords,color){
-  L.polyline(coords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
-  L.polyline(coords,{color:color,weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
-  L.polyline(coords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
-  routeLayer=L.polyline(coords,{color:'rgba(0,0,0,0)',weight:0}).addTo(map);// invisible ref
+  const c = color||'#1A6FFF';
+  // Outer shadow (visible on light map)
+  L.polyline(coords,{color:'rgba(0,0,0,0.22)',weight:13,lineCap:'round',lineJoin:'round'}).addTo(map);
+  // Main route — Waze blue
+  L.polyline(coords,{color:c,weight:8,lineCap:'round',lineJoin:'round',opacity:1}).addTo(map);
+  // White inner highlight
+  L.polyline(coords,{color:'rgba(255,255,255,0.55)',weight:3,lineCap:'round',lineJoin:'round'}).addTo(map);
+  routeLayer=L.polyline(coords,{color:'rgba(0,0,0,0)',weight:0}).addTo(map);
 }
 
 function clearOldRoute(){
@@ -1463,7 +1490,7 @@ async function recalcFromPos(lat,lon){
     }));
     clearOldRoute();
     L.polyline(routeCoords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
-    L.polyline(routeCoords,{color:'#39FF14',weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
+    L.polyline(routeCoords,{color:'#1A6FFF',weight:8,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
     L.polyline(routeCoords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
     showToast('✅ RUTA RECALCULADA');
   }catch(e){console.warn('Recalc failed',e);}
@@ -1596,6 +1623,9 @@ function updateTelemetry(pct,idx){
     document.getElementById('nav-street').textContent=s.street;
     const remD=Math.round(kmLeft*1000);
     document.getElementById('nav-dist-big').textContent=remD>999?(remD/1000).toFixed(1)+' KM':remD+' M';
+    updateMiniHud(simSpeed, etaStr, s.arrow);
+  } else {
+    updateMiniHud(simSpeed, etaStr, '↑');
   }
 }
 
@@ -1628,11 +1658,12 @@ function startNav(){
 
   clearOldRoute();
   L.polyline(routeCoords,{color:'rgba(0,0,0,.5)',weight:14,lineCap:'round',lineJoin:'round'}).addTo(map);
-  L.polyline(routeCoords,{color:'#39FF14',weight:5,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
+  L.polyline(routeCoords,{color:'#1A6FFF',weight:8,lineCap:'round',lineJoin:'round',opacity:.95}).addTo(map);
   L.polyline(routeCoords,{color:'rgba(255,255,255,.35)',weight:2,lineCap:'round',lineJoin:'round'}).addTo(map);
 
   map.setView(routeCoords[0],16,{animate:true,duration:1.2});
   nitroFlash();
+  startHudAutoHide();
   // Hide search toggle during race
   document.getElementById('btn-toggle-search').classList.remove('show');
 
@@ -1751,6 +1782,7 @@ async function shareNative(){
 
 function stopNav(){
   stopGps();stopTimer();navActive=false;
+  stopHudAutoHide();
   document.getElementById('progress-bar').style.display='none';
   if(carMarker){map.removeLayer(carMarker);carMarker=null;}
   updateSpeedUI(0);document.getElementById('gear-val').textContent='N';
@@ -1765,7 +1797,7 @@ function stopNav(){
   const ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
   if(ex&&(document.fullscreenElement||document.webkitFullscreenElement)) ex.call(document).catch(()=>{});
   switchToDash('idle');clearOldRoute();
-  if(routeCoords.length)drawRoute(routeCoords,'#00F5FF');
+  if(routeCoords.length)drawRoute(routeCoords,'#1A6FFF');
   updateGpsSignalUI(false,0);
   document.getElementById('btn-toggle-search').classList.add('show');
   if(!searchVisible) toggleSearch();
@@ -1979,6 +2011,47 @@ function finishNow(){
     showResults();
   }, 400);
 }
+// ═══════════════════════════════════
+//  HUD AUTO-HIDE + TAP TO REVEAL
+// ═══════════════════════════════════
+let hudVisible=true, hudHideTimer=null;
+
+function showHud(){
+  hudVisible=true;
+  document.getElementById('dashboard').classList.remove('hud-hidden');
+  document.getElementById('hud-tab').classList.remove('show');
+  document.getElementById('race-mini-hud').classList.remove('show');
+  clearTimeout(hudHideTimer);
+  if(navActive) hudHideTimer=setTimeout(()=>{if(navActive)hideHud();},4500);
+}
+function hideHud(){
+  hudVisible=false;
+  document.getElementById('dashboard').classList.add('hud-hidden');
+  document.getElementById('hud-tab').classList.add('show');
+  document.getElementById('race-mini-hud').classList.add('show');
+}
+function toggleHud(){ hudVisible?hideHud():showHud(); }
+
+function startHudAutoHide(){
+  showHud();
+  map.off('click preclick').on('click',()=>{if(navActive)showHud();});
+  map.off('touchstart').on('touchstart',()=>{if(navActive)showHud();});
+}
+function stopHudAutoHide(){
+  clearTimeout(hudHideTimer);
+  showHud();
+  document.getElementById('hud-tab').classList.remove('show');
+  document.getElementById('race-mini-hud').classList.remove('show');
+}
+function updateMiniHud(spd,etaStr,arrow){
+  const ms=document.getElementById('mini-spd');
+  const me=document.getElementById('mini-eta');
+  const ma=document.getElementById('mini-arrow');
+  if(ms)ms.textContent=Math.round(spd);
+  if(me)me.textContent=etaStr;
+  if(ma)ma.textContent=arrow||'↑';
+}
+
 let searchVisible=true;
 function toggleSearch(){
   searchVisible=!searchVisible;
@@ -2013,8 +2086,8 @@ function autoHideSearch(){
   },1400);
 }
 CIUDADES.forEach(c=>{
-  const dot=L.circleMarker([c.lat,c.lon],{radius:5,color:'#00F5FF',fillColor:'#00F5FF',fillOpacity:.2,weight:1.5,opacity:.5}).addTo(map);
-  dot.bindTooltip(`<span style="font-family:'Share Tech Mono';color:#00F5FF;font-size:11px;">${c.icon} ${c.name.toUpperCase()}</span>`,{direction:'top'});
+  const dot=L.circleMarker([c.lat,c.lon],{radius:5,color:'#1A6FFF',fillColor:'#1A6FFF',fillOpacity:.35,weight:2,opacity:.8}).addTo(map);
+  dot.bindTooltip(`<span style="font-family:'Share Tech Mono',monospace;color:#1A6FFF;font-size:11px;font-weight:700;">${c.name.toUpperCase()}</span>`,{direction:'top',className:'leaflet-tooltip-custom'});
   dot.on('click',()=>{
     const svg=cityIconSvg(c.tag);
     if(!originCity) selectPlace('origin',{lat:c.lat,lon:c.lon,name:c.name,iconSvg:svg});
